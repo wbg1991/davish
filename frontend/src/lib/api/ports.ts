@@ -65,10 +65,12 @@ export interface Site {
   serverID: string
   remotePort: number
   localPort: number
+  /** The server's port is spoken to over HTTPS. */
+  secure: boolean
   /** Must be in the first URL the frame loads. */
   token: string
 }
 
-export const browserOpen = (serverID: string, port: number): Promise<Site> =>
-  App.BrowserOpen(serverID, port)
+export const browserOpen = (serverID: string, port: number, secure: boolean): Promise<Site> =>
+  App.BrowserOpen(serverID, port, secure)
 export const browserSites = (): Promise<Site[]> => App.BrowserSites()

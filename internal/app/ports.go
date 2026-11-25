@@ -34,12 +34,13 @@ func (a *App) TunnelList() []ports.Tunnel {
 }
 
 // BrowserOpen starts (or reuses) the in-app browser's proxy for a server
-// port; see .claude/docs/adr/0008-in-app-browser.md.
-func (a *App) BrowserOpen(serverID string, port int) (ports.Site, error) {
+// port, spoken to over HTTPS when secure; see
+// .claude/docs/adr/0008-in-app-browser.md.
+func (a *App) BrowserOpen(serverID string, port int, secure bool) (ports.Site, error) {
 	if err := a.lock.Check(); err != nil {
 		return ports.Site{}, err
 	}
-	return a.browser.Open(serverID, port)
+	return a.browser.Open(serverID, port, secure)
 }
 
 // BrowserSites lists the proxies, to map their local ports back to the VPS.

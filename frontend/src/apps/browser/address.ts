@@ -5,11 +5,14 @@ export interface Address {
   port: number
   /** Path, query and hash, starting with '/'. */
   path: string
+  /** The server's port is spoken to over HTTPS. */
+  secure: boolean
 }
 
 /**
- * Reads "localhost:3000/admin", ":3000", "3000", "http://127.0.0.1:8080/x"
- * or "localhost/x" (port 80); undefined for anything that is not the server.
+ * Reads "localhost:3000/admin", ":3000", "3000", "http://127.0.0.1:8080/x",
+ * "localhost/x" (port 80) or "https://localhost/x" (port 443); undefined for
+ * anything that is not the server. Without a scheme it is HTTP.
  */
 export function parseAddress(text: string): Address | undefined {
   let s = text.trim()
@@ -23,11 +26,20 @@ export function parseAddress(text: string): Address | undefined {
   } catch {
     return undefined
   }
-  if (u.protocol !== 'http:') return undefined
+  if (u.protocol !== 'http:' && u.protocol !== 'https:') return undefined
+  const secure = u.protocol === 'https:'
   if (!['localhost', '127.0.0.1', '0.0.0.0', '[::1]'].includes(u.hostname)) return undefined
-  const port = u.port ? Number(u.port) : 80
+  const port = u.port ? Number(u.port) : defaultPort(secure)
   if (!(port >= 1 && port <= 65535)) return undefined
-  return { port, path: `${u.pathname}${u.search}${u.hash}` }
+  return { port, path: `${u.pathname}${u.search}${u.hash}`, secure }
+}
+
+const defaultPort = (secure: boolean) => (secure ? 443 : 80)
+
+/** An address as the bar shows it; only HTTPS names its scheme. */
+export function serverAddress({ port, path, secure }: Address): string {
+  const shown = port === defaultPort(secure) ? '' : `:${port}`
+  return `${secure ? 'https://' : ''}localhost${shown}${path}`
 }
 
 /** The URL the frame loads: the proxy's port, the path, and the token. */
@@ -38,9 +50,15 @@ export function frameURL(localPort: number, path: string, token: string): string
 }
 
 /** How a proxied page's address reads in the bar, as on the server. */
-export function displayAddress(href: string, remotePort: number): string {
+export function displayAddress(
+  href: string,
+  site: { remotePort: number; secure: boolean },
+): string {
   const u = new URL(href)
   u.searchParams.delete('__davish')
-  const port = remotePort === 80 ? '' : `:${remotePort}`
-  return `localhost${port}${u.pathname}${u.search}${u.hash}`
+  return serverAddress({
+    port: site.remotePort,
+    path: `${u.pathname}${u.search}${u.hash}`,
+    secure: site.secure,
+  })
 }

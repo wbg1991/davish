@@ -5,6 +5,7 @@ Notable changes to Davish, in English. The format follows [Keep a Changelog](htt
 ## [Unreleased]
 
 ### Added
+- **HTTPS in the Browser**: type `https://localhost:8443` to open a web app on the server that only speaks HTTPS, redirects from HTTP to HTTPS and `Secure` cookies included. A self-signed or domain certificate works: it is not checked, because the connection only reaches the server's own `127.0.0.1`, through SSH with its pinned host key.
 - **Duplicate a server** (#257): the copy icon on a card or a row in All servers opens the add dialog filled in from that server, with the name as `name (copy)`, so only what differs is typed. Nothing is created until you save. Passwords, key passphrases and the control socket are not copied.
 - **Connect through an OpenSSH control socket** (#240): for logins that only work through OpenSSH, such as an agent that issues certificates on demand (authentik), the server dialog has an **Advanced: use an ssh control socket** field. Start a master yourself (`ssh -M -S <path> -fN user@host`) and give Davish its path: it attaches to that connection, so OpenSSH does the login and Davish never sees your credentials. It replaces the authentication of that server, and works on Linux and macOS only. Tried against authentik by @PlayerFann14.
 

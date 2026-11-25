@@ -183,8 +183,8 @@ const ko = {
     address: '서버의 주소',
     placeholder: 'localhost:3000 — 서버의 포트',
     start: '서버의 포트 열기',
-    hint: '서버에 있는 것처럼 localhost:<포트>를 입력하세요. 페이지는 이 컴퓨터의 127.0.0.1에서 임의의 포트로 수신하는 프록시를 거치므로, 사용 중인 포트에는 영향이 없습니다.',
-    badAddress: '서버의 localhost:<포트>만 http로 열 수 있습니다.',
+    hint: '서버에 있는 것처럼 localhost:<포트>를 입력하세요. 페이지는 이 컴퓨터의 127.0.0.1에서 임의의 포트로 수신하는 프록시를 거치므로, 사용 중인 포트에는 영향이 없습니다. HTTPS만 지원하는 앱은 https://localhost:<포트>를 입력하세요. 연결은 SSH를 통해 서버 자신에게만 닿으므로 인증서는 검사하지 않습니다.',
+    badAddress: '서버의 localhost:<포트>만 http 또는 https로 열 수 있습니다.',
     offline: '서버가 연결되지 않았습니다',
     offlineHint: '브라우저는 서버의 SSH 연결을 사용합니다.',
   },
@@ -1259,6 +1259,7 @@ const ko = {
         does: '외부에 포트를 열지 않고 SSH 프록시를 통해 서버에서 실행 중인 웹 앱(VPS의 localhost:<포트>)을 Davish 안에서 봅니다.',
         actions: [
           '주소창에 localhost:3000 입력',
+          'HTTPS 전용 앱은 https://localhost:8443 입력',
           'localhost:<다른 포트>로의 리디렉션도 서버 안에서 처리',
           '로그인 쿠키는 Davish가 보관하며 페이지의 JS는 읽을 수 없음',
         ],

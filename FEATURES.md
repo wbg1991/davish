@@ -184,7 +184,7 @@ Every TCP port the server listens on, with its process or container. Open one in
 
 ## Browser
 
-Type `localhost:3000` and see the web app running on the server, inside a Davish window: back, forward, reload, redirects and websockets (hot reload) stay on the server, logins keep working. It goes over SSH through a proxy on a random `127.0.0.1` port, so nothing clashes with what runs on your machine, and the page lives at its own origin, never able to reach Davish.
+Type `localhost:3000` and see the web app running on the server, inside a Davish window: back, forward, reload, redirects and websockets (hot reload) stay on the server, logins keep working. It goes over SSH through a proxy on a random `127.0.0.1` port, so nothing clashes with what runs on your machine, and the page lives at its own origin, never able to reach Davish. An app that only speaks HTTPS opens with `https://localhost:8443`; its certificate is not checked, since the connection only reaches the server's own loopback, over SSH.
 
 <img src="assets/screenshots/en/browser.jpg" alt="A web app on the server, opened inside Davish" width="100%">
 

@@ -12,7 +12,7 @@
   import { selectRequests } from '../../lib/wm/intents.svelte'
   import TitleBar from '../../lib/wm/TitleBar.svelte'
   import type { AppProps } from '../types'
-  import { displayAddress, frameURL, parseAddress } from './address'
+  import { displayAddress, frameURL, parseAddress, serverAddress } from './address'
   import { demoPage } from './demo'
 
   let { win }: AppProps = $props()
@@ -45,13 +45,13 @@
       srcdoc = page.html
       title = page.title
       src = `demo:${a.port}`
-      address = `localhost${a.port === 80 ? '' : `:${a.port}`}${a.path}`
+      address = serverAddress(a)
       return
     }
     try {
-      const site = await browserOpen(win.serverID, a.port)
+      const site = await browserOpen(win.serverID, a.port, a.secure)
       sites = [...sites.filter((s) => s.localPort !== site.localPort), site]
-      address = displayAddress(frameURL(site.localPort, a.path, site.token), a.port)
+      address = displayAddress(frameURL(site.localPort, a.path, site.token), site)
       src = frameURL(site.localPort, a.path, site.token)
     } catch (e) {
       error = toUserError(e).message
@@ -76,7 +76,7 @@
       site = sites.find((s) => s.localPort === local)
     }
     if (site?.serverID !== win.serverID) return
-    address = displayAddress(d.href, site.remotePort)
+    address = displayAddress(d.href, site)
     title = typeof d.title === 'string' ? d.title : ''
   }
 
