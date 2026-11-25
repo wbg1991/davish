@@ -2163,7 +2163,7 @@ const en = {
     themes: { system: 'Auto', light: 'Light', dark: 'Dark' },
     language: 'Language',
     languageHint: 'The language of the interface.',
-    langs: { vi: 'Tiếng Việt', en: 'English', zh: '简体中文', es: 'Español' },
+    langs: { vi: 'Tiếng Việt', en: 'English', zh: '简体中文', es: 'Español', ko: '한국어' },
     langRestart:
       'Davish will restart: running terminals and transfers stop, and servers reconnect on their own.',
     langApply: 'Restart',
@@ -3104,7 +3104,6 @@ const en = {
   },
   cron: {
     and: 'and',
-    atWord: 'at',
     at: (times: string) => `at ${times}`,
     atBoot: 'When the server boots',
     everyMinute: 'every minute',

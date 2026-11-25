@@ -2096,7 +2096,7 @@ const zh = {
     themes: { system: '自动', light: '浅色', dark: '深色' },
     language: '语言',
     languageHint: '界面的语言。',
-    langs: { vi: 'Tiếng Việt', en: 'English', zh: '简体中文', es: 'Español' },
+    langs: { vi: 'Tiếng Việt', en: 'English', zh: '简体中文', es: 'Español', ko: '한국어' },
     langRestart: 'Davish 会重启：正在运行的终端和传输会停止，服务器会自动重新连接。',
     langApply: '重启',
     reduceGlass: '减弱玻璃效果',
@@ -3003,7 +3003,6 @@ const zh = {
   },
   cron: {
     and: '和',
-    atWord: '在',
     at: (times: string) => times,
     atBoot: '服务器启动时',
     everyMinute: '每分钟',

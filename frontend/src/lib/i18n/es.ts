@@ -2199,7 +2199,7 @@ const es = {
     themes: { system: 'Automático', light: 'Claro', dark: 'Oscuro' },
     language: 'Idioma',
     languageHint: 'El idioma de la interfaz.',
-    langs: { vi: 'Tiếng Việt', en: 'English', zh: '简体中文', es: 'Español' },
+    langs: { vi: 'Tiếng Việt', en: 'English', zh: '简体中文', es: 'Español', ko: '한국어' },
     langRestart:
       'Davish se reiniciará: los terminales y transferencias en curso se detienen, y los servidores se vuelven a conectar solos.',
     langApply: 'Reiniciar',
@@ -3171,7 +3171,6 @@ const es = {
   },
   cron: {
     and: 'y',
-    atWord: 'a las',
     at: (times: string) => `a las ${times}`,
     atBoot: 'Al arrancar el servidor',
     everyMinute: 'cada minuto',
