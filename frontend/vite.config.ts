@@ -12,7 +12,8 @@ export default defineConfig({
   // The manifest lets scripts/bundle-budget.mjs tell the first screen's
   // chunks from those loaded later.
   build: { manifest: true },
-  define: { __APP_VERSION__: JSON.stringify(wails.info.productVersion) },
+  // This build comes from a fork, and says so wherever the version shows.
+  define: { __APP_VERSION__: JSON.stringify(`${wails.info.productVersion} (Fork)`) },
   test: {
     include: ['src/**/*.test.ts'],
     setupFiles: ['src/test-setup.ts'],
