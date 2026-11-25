@@ -963,6 +963,8 @@ const es = {
       chartRange: '15 minutos',
     },
     weekdays: ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'],
+    clock: (weekday: string, day: string, month: string, time: string) =>
+      `${weekday} ${day}/${month}  ${time}`,
   },
   menu: {
     addServer: 'Añadir servidor…',
@@ -1997,6 +1999,7 @@ const es = {
     count: (n: number) => `${n.toLocaleString('es-ES')} ${n === 1 ? 'elemento' : 'elementos'}`,
     today: 'Hoy',
     yesterday: 'Ayer',
+    date: (day: string, month: string, year: number) => `${day}/${month}/${year}`,
     upload: 'Subir',
     uploadFolder: 'Subir carpeta',
     download: 'Descargar',
@@ -3187,6 +3190,8 @@ const es = {
     inMonths: (months: string) => `(meses: ${months})`,
     today: (time: string) => `Hoy, ${time}`,
     tomorrow: (time: string) => `Mañana, ${time}`,
+    runDate: (weekday: string, day: string, month: string, time: string) =>
+      `${weekday}, ${day}/${month} ${time}`,
     weekdayShort: ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'],
     sections: 'Filtros de tareas',
     filters: { mine: 'Mías', system: 'Sistema', disabled: 'Desactivadas' },
