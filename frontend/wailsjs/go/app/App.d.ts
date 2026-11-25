@@ -44,7 +44,7 @@ export function BenchConfig():Promise<app.BenchConfig>;
 
 export function BenchReport(arg1:string):Promise<void>;
 
-export function BrowserOpen(arg1:string,arg2:number):Promise<ports.Site>;
+export function BrowserOpen(arg1:string,arg2:number,arg3:boolean):Promise<ports.Site>;
 
 export function BrowserSites():Promise<Array<ports.Site>>;
 

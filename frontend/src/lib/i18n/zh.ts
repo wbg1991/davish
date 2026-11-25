@@ -177,8 +177,8 @@ const zh = {
     address: '服务器上的地址',
     placeholder: 'localhost:3000（服务器上的端口）',
     start: '打开服务器的端口',
-    hint: '像在服务器上一样输入 localhost:<端口>。页面经由这台电脑 127.0.0.1 上随机端口的代理访问，不会占用你的任何端口。',
-    badAddress: '只能通过 http 打开服务器的 localhost:<端口>。',
+    hint: '像在服务器上一样输入 localhost:<端口>。页面经由这台电脑 127.0.0.1 上随机端口的代理访问，不会占用你的任何端口。仅支持 HTTPS 的应用请输入 https://localhost:<端口>；由于连接只经由 SSH 到达服务器本身，不会检查其证书。',
+    badAddress: '只能通过 http 或 https 打开服务器的 localhost:<端口>。',
     offline: '服务器未连接',
     offlineHint: '浏览器使用服务器的 SSH 连接。',
   },
@@ -1218,6 +1218,7 @@ const zh = {
         does: '通过 SSH 代理，在 Davish 里直接查看服务器上运行的 Web 应用（VPS 的 localhost:<端口>），不对外开放任何端口。',
         actions: [
           '在地址栏输入 localhost:3000',
+          '仅支持 HTTPS 的应用请输入 https://localhost:8443',
           '跳转到 localhost:<其他端口> 时仍留在服务器上',
           '登录 cookie 由 Davish 保存，页面的 JS 无法读取',
         ],

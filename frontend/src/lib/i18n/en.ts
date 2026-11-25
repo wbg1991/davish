@@ -174,8 +174,8 @@ const en = {
     address: 'Address on the server',
     placeholder: 'localhost:3000 — a port on the server',
     start: 'Open a port of the server',
-    hint: 'Type localhost:<port> as if you were on the server. Pages go through a proxy listening on 127.0.0.1 at a random port of this computer, so none of your ports are touched.',
-    badAddress: 'Only localhost:<port> of the server can be opened, over http.',
+    hint: 'Type localhost:<port> as if you were on the server. Pages go through a proxy listening on 127.0.0.1 at a random port of this computer, so none of your ports are touched. For an app that only speaks HTTPS, type https://localhost:<port>; its certificate is not checked, as the connection only reaches the server itself, through SSH.',
+    badAddress: 'Only localhost:<port> of the server can be opened, over http or https.',
     offline: 'Server not connected',
     offlineHint: 'The browser uses the server’s SSH connection.',
   },
@@ -1255,6 +1255,7 @@ const en = {
         does: 'View web apps running on the server (the VPS’s localhost:<port>) right inside Davish, through an SSH proxy, with no port opened to the outside.',
         actions: [
           'Type localhost:3000 into the address bar',
+          'For an HTTPS-only app, type https://localhost:8443',
           'Redirects to localhost:<another port> stay on the server',
           'Login cookies are kept by Davish; the page’s JS cannot read them',
         ],

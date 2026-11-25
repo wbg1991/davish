@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/subtle"
+	"crypto/tls"
 	_ "embed"
 	"encoding/hex"
 	"io"
@@ -26,7 +27,8 @@ import (
 
 // The in-app browser (.claude/docs/adr/0008-in-app-browser.md): one proxy listener
 // per server port, on 127.0.0.1 at a port the OS picks, shown in an iframe
-// at its own origin.
+// at its own origin. The frame always talks plain HTTP to the listener; the
+// listener speaks HTTP or HTTPS to the server's port.
 
 //go:embed nav.js
 var navJS []byte
@@ -42,6 +44,8 @@ type Site struct {
 	ServerID   string `json:"serverID"`
 	RemotePort int    `json:"remotePort"`
 	LocalPort  int    `json:"localPort"`
+	// Secure is set when the server's port is spoken to over HTTPS.
+	Secure bool `json:"secure"`
 	// Token must be in the first URL loaded; see ADR 0008.
 	Token string `json:"token"`
 }
@@ -58,7 +62,7 @@ type Browser struct {
 	log   *slog.Logger
 
 	mu sync.Mutex
-	// sites holds the open listeners by server and remote port.
+	// sites holds the open listeners by server, remote port and scheme.
 	sites map[string]*site
 }
 
@@ -67,10 +71,19 @@ func NewBrowser(conns ClientSource, log *slog.Logger) *Browser {
 	return &Browser{conns: conns, log: log, sites: map[string]*site{}}
 }
 
-func siteKey(serverID string, port int) string { return serverID + "|" + strconv.Itoa(port) }
+func siteKey(serverID string, port int, secure bool) string {
+	return serverID + "|" + scheme(secure) + "|" + strconv.Itoa(port)
+}
+
+func scheme(secure bool) string {
+	if secure {
+		return "https"
+	}
+	return "http"
+}
 
 // Open returns the listener for the server's port, starting it if needed.
-func (b *Browser) Open(serverID string, port int) (Site, error) {
+func (b *Browser) Open(serverID string, port int, secure bool) (Site, error) {
 	if port < 1 || port > 65535 {
 		return Site{}, apperr.New(apperr.InvalidInput, "port must be 1-65535")
 	}
@@ -79,12 +92,12 @@ func (b *Browser) Open(serverID string, port int) (Site, error) {
 	}
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	return b.open(serverID, port)
+	return b.open(serverID, port, secure)
 }
 
 // open needs b.mu.
-func (b *Browser) open(serverID string, port int) (Site, error) {
-	if s, ok := b.sites[siteKey(serverID, port)]; ok {
+func (b *Browser) open(serverID string, port int, secure bool) (Site, error) {
+	if s, ok := b.sites[siteKey(serverID, port, secure)]; ok {
 		return s.Site, nil
 	}
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
@@ -99,15 +112,15 @@ func (b *Browser) open(serverID string, port int) (Site, error) {
 	jar, _ := cookiejar.New(nil) // never fails without options
 	s := &site{
 		Site: Site{
-			ServerID: serverID, RemotePort: port,
+			ServerID: serverID, RemotePort: port, Secure: secure,
 			LocalPort: ln.Addr().(*net.TCPAddr).Port, Token: hex.EncodeToString(tok),
 		},
 		jar: jar,
 	}
 	s.srv = &http.Server{Handler: b.handler(s), ReadHeaderTimeout: 30 * time.Second}
-	b.sites[siteKey(serverID, port)] = s
+	b.sites[siteKey(serverID, port, secure)] = s
 	go s.srv.Serve(ln) //nolint:errcheck,gosec // ends with Close
-	b.log.Info("browser site opened", "server", serverID, "remote", port, "local", s.LocalPort)
+	b.log.Info("browser site opened", "server", serverID, "remote", port, "secure", secure, "local", s.LocalPort)
 	return s.Site, nil
 }
 
@@ -164,10 +177,22 @@ func (b *Browser) handler(s *site) http.Handler {
 		},
 		MaxIdleConnsPerHost: 4,
 		IdleConnTimeout:     30 * time.Second,
+		TLSHandshakeTimeout: 15 * time.Second,
+	}
+	if s.Secure {
+		// The certificate is not checked: it is made for a domain, or signed
+		// by itself, and cannot match the server's loopback. DialContext only
+		// ever reaches 127.0.0.1 on the server, through SSH, whose host key
+		// is pinned; that is what says who answers, as it does for HTTP.
+		transport.TLSClientConfig = &tls.Config{
+			InsecureSkipVerify: true, //nolint:gosec // loopback of the SSH server only, see above
+			ServerName:         "localhost",
+			MinVersion:         tls.VersionTLS12,
+		}
 	}
 	proxy := &httputil.ReverseProxy{
 		Rewrite: func(r *httputil.ProxyRequest) {
-			r.SetURL(&url.URL{Scheme: "http", Host: remote})
+			r.SetURL(&url.URL{Scheme: scheme(s.Secure), Host: remote})
 			// The app sees itself addressed as on the server.
 			r.Out.Host = "localhost:" + strconv.Itoa(s.RemotePort)
 			q := r.Out.URL.Query()
@@ -208,6 +233,10 @@ func (b *Browser) handler(s *site) http.Handler {
 
 var frameAncestors = regexp.MustCompile(`(?i)\s*frame-ancestors[^;]*;?`)
 
+// upgradeInsecure would send the page's own requests to the listener over
+// HTTPS, which it does not speak.
+var upgradeInsecure = regexp.MustCompile(`(?i)\s*upgrade-insecure-requests[^;]*;?`)
+
 // rewrite keeps the page in the frame and on the server: cookies to the
 // jar, redirects to the matching listener, framing headers off, nav.js in.
 func (b *Browser) rewrite(s *site, resp *http.Response) error {
@@ -217,9 +246,12 @@ func (b *Browser) rewrite(s *site, resp *http.Response) error {
 		h.Del("Set-Cookie")
 	}
 	h.Del("X-Frame-Options")
+	// About the server's own origin, not the listener's.
+	h.Del("Strict-Transport-Security")
 	for _, k := range []string{"Content-Security-Policy", "Content-Security-Policy-Report-Only"} {
 		if v := h.Get(k); v != "" {
-			h.Set(k, frameAncestors.ReplaceAllString(v, ""))
+			v = frameAncestors.ReplaceAllString(v, "")
+			h.Set(k, upgradeInsecure.ReplaceAllString(v, ""))
 		}
 	}
 	h.Set("Referrer-Policy", "same-origin")
@@ -275,29 +307,34 @@ func (b *Browser) mapLocation(s *site, loc string) string {
 		u.RawQuery = withToken(u.RawQuery, s.Token)
 		return u.String()
 	}
-	if u.Scheme != "http" {
+	if u.Scheme != "http" && u.Scheme != "https" {
 		return loc
 	}
+	secure := u.Scheme == "https"
 	switch u.Hostname() {
 	case "localhost", "127.0.0.1", "0.0.0.0", "::1":
 	default:
 		return loc
 	}
 	port := 80
+	if secure {
+		port = 443
+	}
 	if p := u.Port(); p != "" {
 		if port, err = strconv.Atoi(p); err != nil {
 			return loc
 		}
 	}
 	target := s.Site
-	if port != s.RemotePort {
+	if port != s.RemotePort || secure != s.Secure {
 		b.mu.Lock()
-		target, err = b.open(s.ServerID, port)
+		target, err = b.open(s.ServerID, port, secure)
 		b.mu.Unlock()
 		if err != nil {
 			return loc
 		}
 	}
+	u.Scheme = "http"
 	u.Host = "127.0.0.1:" + strconv.Itoa(target.LocalPort)
 	u.RawQuery = withToken(u.RawQuery, target.Token)
 	return u.String()

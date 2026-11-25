@@ -3370,6 +3370,7 @@ export namespace ports {
 	    serverID: string;
 	    remotePort: number;
 	    localPort: number;
+	    secure: boolean;
 	    token: string;
 	
 	    static createFrom(source: any = {}) {
@@ -3381,6 +3382,7 @@ export namespace ports {
 	        this.serverID = source["serverID"];
 	        this.remotePort = source["remotePort"];
 	        this.localPort = source["localPort"];
+	        this.secure = source["secure"];
 	        this.token = source["token"];
 	    }
 	}

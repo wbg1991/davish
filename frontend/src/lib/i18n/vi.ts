@@ -185,8 +185,8 @@ const vi = {
     address: 'Địa chỉ trên server',
     placeholder: 'localhost:3000 — cổng trên server',
     start: 'Mở một cổng của server',
-    hint: 'Gõ localhost:<cổng> như khi ngồi trên server. Trang đi qua proxy nghe 127.0.0.1 ở một cổng ngẫu nhiên của máy này, không đụng cổng nào bạn đang dùng.',
-    badAddress: 'Chỉ mở được localhost:<cổng> của server, qua http.',
+    hint: 'Gõ localhost:<cổng> như khi ngồi trên server. Trang đi qua proxy nghe 127.0.0.1 ở một cổng ngẫu nhiên của máy này, không đụng cổng nào bạn đang dùng. Nếu app trên server chỉ chạy HTTPS, gõ https://localhost:<cổng>; chứng chỉ của nó không được kiểm tra, vì kết nối chỉ đến chính server qua SSH.',
+    badAddress: 'Chỉ mở được localhost:<cổng> của server, qua http hoặc https.',
     offline: 'Server chưa kết nối',
     offlineHint: 'Trình duyệt dùng kết nối SSH của server.',
   },
@@ -1239,6 +1239,7 @@ const vi = {
         does: 'Xem web app chạy trên server (localhost:<cổng> của VPS) ngay trong Davish, qua proxy SSH, không mở cổng nào ra ngoài.',
         actions: [
           'Gõ localhost:3000 vào thanh địa chỉ',
+          'App chỉ chạy HTTPS: gõ https://localhost:8443',
           'Redirect tới localhost:<cổng khác> vẫn ở lại server',
           'Cookie đăng nhập do Davish giữ, JS của trang không đọc được',
         ],

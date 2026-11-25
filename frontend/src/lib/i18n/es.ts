@@ -184,8 +184,8 @@ const es = {
     address: 'Dirección en el servidor',
     placeholder: 'localhost:3000 — un puerto del servidor',
     start: 'Abrir un puerto del servidor',
-    hint: 'Escribe localhost:<puerto> como si estuvieras en el servidor. Las páginas pasan por un proxy que escucha en 127.0.0.1 en un puerto aleatorio de este ordenador, así que ninguno de tus puertos se toca.',
-    badAddress: 'Solo se puede abrir localhost:<puerto> del servidor, por http.',
+    hint: 'Escribe localhost:<puerto> como si estuvieras en el servidor. Las páginas pasan por un proxy que escucha en 127.0.0.1 en un puerto aleatorio de este ordenador, así que ninguno de tus puertos se toca. Para una app que solo usa HTTPS, escribe https://localhost:<puerto>; su certificado no se comprueba, porque la conexión solo llega al propio servidor, por SSH.',
+    badAddress: 'Solo se puede abrir localhost:<puerto> del servidor, por http o https.',
     offline: 'Servidor no conectado',
     offlineHint: 'El navegador usa la conexión SSH del servidor.',
   },
@@ -1278,6 +1278,7 @@ const es = {
         does: 'Ve las apps web que corren en el servidor (el localhost:<puerto> del VPS) dentro de Davish, a través de un proxy SSH, sin abrir ningún puerto al exterior.',
         actions: [
           'Escribe localhost:3000 en la barra de direcciones',
+          'Para una app solo HTTPS, escribe https://localhost:8443',
           'Las redirecciones a localhost:<otro puerto> se quedan en el servidor',
           'Davish guarda las cookies de sesión; el JS de la página no puede leerlas',
         ],
