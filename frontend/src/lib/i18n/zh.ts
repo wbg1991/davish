@@ -1117,7 +1117,7 @@ const zh = {
       },
       transfers: {
         does: '上传、下载以及两台服务器之间复制的进度。',
-        actions: ['取消传输', '在访达中显示已下载的文件'],
+        actions: ['取消传输', '重试失败的传输', '在访达中显示已下载的文件'],
         keys: [],
         runs: ['SFTP'],
       },
@@ -2054,6 +2054,8 @@ const zh = {
     done: '完成',
     canceled: '已取消',
     cancel: (name: string) => `取消传输“${name}”`,
+    retry: (name: string) => `重试传输“${name}”`,
+    partLeft: '可能留下了 .davish-part 临时文件。',
     clearFinished: '清除已完成',
     empty: '还没有传输',
     emptyHint: '在文件中上传、下载，或把文件拖到另一台服务器；进度会显示在这里。',

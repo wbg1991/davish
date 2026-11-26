@@ -412,6 +412,8 @@ export function TransferCancel(arg1:string):Promise<void>;
 
 export function TransferCopy(arg1:string,arg2:Array<string>,arg3:string,arg4:string):Promise<Array<transfer.Job>>;
 
+export function TransferDiscard(arg1:string):Promise<void>;
+
 export function TransferDownload(arg1:string,arg2:Array<string>):Promise<Array<transfer.Job>>;
 
 export function TransferPickFiles(arg1:string):Promise<Array<string>>;
@@ -419,6 +421,8 @@ export function TransferPickFiles(arg1:string):Promise<Array<string>>;
 export function TransferPickFolder(arg1:string):Promise<string>;
 
 export function TransferPlanUpload(arg1:string,arg2:string,arg3:Array<string>):Promise<Array<transfer.UploadItem>>;
+
+export function TransferRetry(arg1:string):Promise<transfer.Job>;
 
 export function TransferReveal(arg1:string):Promise<void>;
 

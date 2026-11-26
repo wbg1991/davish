@@ -774,6 +774,10 @@ export function TransferCopy(arg1, arg2, arg3, arg4) {
   return window['go']['app']['App']['TransferCopy'](arg1, arg2, arg3, arg4);
 }
 
+export function TransferDiscard(arg1) {
+  return window['go']['app']['App']['TransferDiscard'](arg1);
+}
+
 export function TransferDownload(arg1, arg2) {
   return window['go']['app']['App']['TransferDownload'](arg1, arg2);
 }
@@ -788,6 +792,10 @@ export function TransferPickFolder(arg1) {
 
 export function TransferPlanUpload(arg1, arg2, arg3) {
   return window['go']['app']['App']['TransferPlanUpload'](arg1, arg2, arg3);
+}
+
+export function TransferRetry(arg1) {
+  return window['go']['app']['App']['TransferRetry'](arg1);
 }
 
 export function TransferReveal(arg1) {

@@ -1175,7 +1175,11 @@ const es = {
       },
       transfers: {
         does: 'Progreso de subidas, descargas y copias entre dos servidores.',
-        actions: ['Cancelar una transferencia', 'Mostrar un archivo descargado en Finder'],
+        actions: [
+          'Cancelar una transferencia',
+          'Reintentar una transferencia fallida',
+          'Mostrar un archivo descargado en Finder',
+        ],
         keys: [],
         runs: ['SFTP'],
       },
@@ -2153,6 +2157,8 @@ const es = {
     done: 'Hecho',
     canceled: 'Cancelado',
     cancel: (name: string) => `Cancelar la transferencia de «${name}»`,
+    retry: (name: string) => `Reintentar la transferencia de «${name}»`,
+    partLeft: 'Puede haber quedado un archivo temporal .davish-part.',
     clearFinished: 'Borrar las terminadas',
     empty: 'Todavía no hay transferencias',
     emptyHint:

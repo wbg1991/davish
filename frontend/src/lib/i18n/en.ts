@@ -1152,7 +1152,11 @@ const en = {
       },
       transfers: {
         does: 'Progress of uploads, downloads and copies between two servers.',
-        actions: ['Cancel a transfer', 'Show a downloaded file in Finder'],
+        actions: [
+          'Cancel a transfer',
+          'Retry a failed transfer',
+          'Show a downloaded file in Finder',
+        ],
         keys: [],
         runs: ['SFTP'],
       },
@@ -2117,6 +2121,8 @@ const en = {
     done: 'Done',
     canceled: 'Canceled',
     cancel: (name: string) => `Cancel transferring “${name}”`,
+    retry: (name: string) => `Retry transferring “${name}”`,
+    partLeft: 'A temporary .davish-part file may be left behind.',
     clearFinished: 'Clear finished',
     empty: 'No transfers yet',
     emptyHint:

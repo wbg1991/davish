@@ -66,6 +66,16 @@ export const transferCopy = (
 
 export const transferCancel = (jobID: string): Promise<void> => App.TransferCancel(jobID)
 
+/**
+ * Runs a failed job again as a new job. A single file stopped by a lost
+ * connection continues where it stopped; everything else starts over.
+ */
+export const transferRetry = (jobID: string): Promise<Job> =>
+  App.TransferRetry(jobID) as Promise<Job>
+
+/** Forgets a failed job and removes the partial files it left. */
+export const transferDiscard = (jobID: string): Promise<void> => App.TransferDiscard(jobID)
+
 type DropHandler = (paths: string[]) => void
 
 // Wails reports OS file drops once for the whole webview; each Files

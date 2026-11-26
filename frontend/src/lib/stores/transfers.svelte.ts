@@ -218,6 +218,12 @@ class Transfers {
     }
   }
 
+  /** Puts the job retrying failedID in its place. */
+  retried(failedID: string, job: Job) {
+    this.list = this.list.filter((j) => j.id !== failedID)
+    this.add([job])
+  }
+
   /** Drops jobs that are over, keeping the running ones. */
   clearFinished() {
     this.list = this.list.filter((j) => j.state === 'running')

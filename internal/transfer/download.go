@@ -3,6 +3,7 @@ package transfer
 import (
 	"context"
 	"errors"
+	"io"
 	iofs "io/fs"
 	"os"
 	"path"
@@ -20,8 +21,7 @@ import (
 // folder. Existing local files are never replaced: a taken name gets the
 // next free "name (n)".
 func (s *Service) Download(_ context.Context, serverID string, paths []string) ([]Job, error) {
-	sc, err := s.conns.SFTP(serverID)
-	if err != nil {
+	if _, err := s.conns.SFTP(serverID); err != nil {
 		return nil, err
 	}
 	if err := os.MkdirAll(s.opts.DownloadDir, 0o750); err != nil {
@@ -29,52 +29,65 @@ func (s *Service) Download(_ context.Context, serverID string, paths []string) (
 	}
 	jobs := make([]Job, 0, len(paths))
 	for _, p := range paths {
-		job, run, err := s.downloadJob(sc, serverID, p)
+		t, run, err := s.downloadTask(serverID, p)
 		if err != nil {
 			return jobs, err
 		}
-		s.start(job, run) //nolint:contextcheck // a job outlives the call that starts it
+		job := t.job
+		s.start(t, run) //nolint:contextcheck // a job outlives the call that starts it
 		jobs = append(jobs, job)
 	}
 	return jobs, nil
 }
 
-func (s *Service) downloadJob(sc *sftp.Client, serverID, remote string) (Job, func(context.Context, *meter) error, error) {
+func (s *Service) downloadTask(serverID, remote string) (*task, func(context.Context, *meter) error, error) {
 	if err := fs.CheckPath(remote); err != nil {
-		return Job{}, nil, err
+		return nil, nil, err
 	}
-	name := path.Base(remote)
-	if err := safeName(name); err != nil {
-		return Job{}, nil, err
+	if err := safeName(path.Base(remote)); err != nil {
+		return nil, nil, err
 	}
+	t, err := newTask(Job{Kind: KindDownload, ServerID: serverID, Src: remote}, path.Base(remote))
+	if err != nil {
+		return nil, nil, err
+	}
+	run, err := s.bind(t)
+	if err != nil {
+		return nil, nil, err
+	}
+	return t, run, nil
+}
+
+func (s *Service) bindDownload(t *task) (func(context.Context, *meter) error, error) {
+	sc, err := s.conns.SFTP(t.job.ServerID)
+	if err != nil {
+		return nil, err
+	}
+	remote := t.job.Src
 	// Follow a link given directly: the user wants what it points to.
 	fi, err := sc.Stat(remote)
 	if err != nil {
-		return Job{}, nil, mapErr("download", err)
+		return nil, mapErr("download", err)
 	}
 	if !fi.IsDir() && !fi.Mode().IsRegular() {
-		return Job{}, nil, apperr.New(apperr.InvalidInput, "only files and folders can be downloaded")
+		return nil, apperr.New(apperr.InvalidInput, "only files and folders can be downloaded")
+	}
+	// A job not bound yet has no name, so Dir says nothing until then.
+	if t.job.Name != "" && fi.IsDir() != t.job.Dir {
+		return nil, apperr.New(apperr.InvalidInput, "the source changed between file and folder")
 	}
 	dir := s.opts.DownloadDir
-	name, err = freeName(name, localExists(dir))
+	name, err := freeName(path.Base(remote), localExists(dir))
 	if err != nil {
-		return Job{}, nil, err
+		return nil, err
 	}
-	id, err := newID()
-	if err != nil {
-		return Job{}, nil, err
-	}
-	job := Job{
-		ID: id, Kind: KindDownload, ServerID: serverID, Name: name,
-		Src: remote, Dst: filepath.Join(dir, name), Dir: fi.IsDir(),
-	}
-	run := func(ctx context.Context, m *meter) error {
+	t.job.Name, t.job.Dst, t.job.Dir = name, filepath.Join(dir, name), fi.IsDir()
+	return func(ctx context.Context, m *meter) error {
 		if fi.IsDir() {
-			return mapErr("download", s.downloadDir(ctx, sc, remote, dir, name, m))
+			return mapErr("download", s.downloadDir(ctx, sc, remote, dir, name, &t.part, m))
 		}
-		return mapErr("download", downloadFile(ctx, sc, remote, fi, dir, name, m))
-	}
-	return job, run, nil
+		return mapErr("download", downloadFile(ctx, sc, remote, fi, dir, name, &t.part, m))
+	}, nil
 }
 
 func localExists(dir string) func(string) (bool, error) {
@@ -95,25 +108,44 @@ func claim(part, final string) error {
 	return os.Rename(part, final)
 }
 
-func downloadFile(ctx context.Context, sc *sftp.Client, remote string, fi os.FileInfo, dir, name string, m *meter) error {
+func downloadFile(ctx context.Context, sc *sftp.Client, remote string, fi os.FileInfo, dir, name string, p *partial, m *meter) error {
 	m.setTotal(fi.Size())
-	part := filepath.Join(dir, partName(name))
-	// A leftover from an interrupted download is ours to replace.
-	if err := os.Remove(part); err != nil && !errors.Is(err, os.ErrNotExist) {
-		return err
+	part := filepath.Join(dir, p.name)
+	var from int64
+	if p.matches(fi) {
+		if lfi, err := os.Lstat(part); err == nil && lfi.Mode().IsRegular() && lfi.Size() <= fi.Size() {
+			from = lfi.Size()
+		}
 	}
-	err := getFile(ctx, sc, remote, part, fi.Mode().Perm(), m)
+	if from == 0 {
+		if err := os.Remove(part); err != nil && !errors.Is(err, os.ErrNotExist) {
+			return err
+		}
+		p.keep, p.left = false, false
+	} else {
+		m.skip(from)
+	}
+	p.remember(fi)
+	err := getFile(ctx, sc, remote, part, from, fi.Mode().Perm(), m)
 	if err == nil {
 		err = claim(part, filepath.Join(dir, name))
 	}
-	if err != nil {
-		os.Remove(part) //nolint:errcheck,gosec // best effort cleanup
+	if err == nil {
+		return nil
 	}
+	if ctx.Err() == nil && lost(sc) {
+		p.keep, p.left = true, true
+		return err
+	}
+	rerr := os.Remove(part)
+	p.keep, p.left = false, rerr != nil && !errors.Is(rerr, os.ErrNotExist)
 	return err
 }
 
-// getFile copies remote to a local path that must not exist yet.
-func getFile(ctx context.Context, sc *sftp.Client, remote, local string, perm os.FileMode, m *meter) error {
+// getFile copies remote to a local path from offset from. At 0 the local
+// path must not exist yet; otherwise it holds exactly from bytes. The file
+// stays writable until it is complete, so that it can be continued.
+func getFile(ctx context.Context, sc *sftp.Client, remote, local string, from int64, perm os.FileMode, m *meter) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
@@ -124,15 +156,34 @@ func getFile(ctx context.Context, sc *sftp.Client, remote, local string, perm os
 	defer src.Close() //nolint:errcheck // read only
 
 	// O_EXCL: never write through a link or over a file already there.
-	dst, err := os.OpenFile(local, os.O_WRONLY|os.O_CREATE|os.O_EXCL, perm) //nolint:gosec // path built from validated names
+	flags := os.O_WRONLY | os.O_CREATE | os.O_EXCL
+	if from > 0 {
+		flags = os.O_WRONLY
+	}
+	dst, err := os.OpenFile(local, flags, perm|0o200) //nolint:gosec // path built from validated names
 	if err != nil {
 		return err
 	}
-	_, err = src.WriteTo(&countingWriter{w: dst, m: m})
+	if from > 0 {
+		_, err = src.Seek(from, io.SeekStart)
+		if err == nil {
+			_, err = dst.Seek(from, io.SeekStart)
+		}
+	}
+	if err == nil {
+		_, err = src.WriteTo(&countingWriter{w: dst, m: m})
+	}
 	if cerr := dst.Close(); err == nil {
 		err = cerr
 	}
-	return err
+	if err != nil || perm&0o200 != 0 {
+		return err
+	}
+	fi, err := os.Stat(local)
+	if err != nil {
+		return err
+	}
+	return os.Chmod(local, fi.Mode().Perm()&^0o200)
 }
 
 // remoteEntry is one item inside a remote folder being downloaded.
@@ -175,20 +226,21 @@ func walkRemote(ctx context.Context, sc *sftp.Client, root string) ([]remoteEntr
 
 // downloadDir builds the folder under a hidden name and renames it into
 // place at the end, so a canceled download leaves nothing half done.
-func (s *Service) downloadDir(ctx context.Context, sc *sftp.Client, remote, dir, name string, m *meter) error {
+func (s *Service) downloadDir(ctx context.Context, sc *sftp.Client, remote, dir, name string, p *partial, m *meter) error {
 	entries, total, err := walkRemote(ctx, sc, remote)
 	if err != nil {
 		return err
 	}
 	m.setTotal(total)
 
-	part := filepath.Join(dir, partName(name))
+	part := filepath.Join(dir, p.name)
 	if err := os.RemoveAll(part); err != nil {
 		return err
 	}
 	if err := os.Mkdir(part, 0o750); err != nil {
 		return err
 	}
+	p.left = true
 	final := filepath.Join(dir, name)
 	err = s.fillLocalDir(ctx, sc, remote, part, entries, m)
 	if err == nil {
@@ -197,6 +249,8 @@ func (s *Service) downloadDir(ctx context.Context, sc *sftp.Client, remote, dir,
 	if err != nil {
 		if rerr := os.RemoveAll(part); rerr != nil {
 			s.log.Warn("download cleanup failed", "app", "transfer", "op", "download", "err", rerr)
+		} else {
+			p.left = false
 		}
 		return err
 	}
@@ -224,7 +278,7 @@ func (s *Service) fillLocalDir(ctx context.Context, sc *sftp.Client, remote, par
 				return err
 			}
 		case e.mode.IsRegular():
-			if err := getFile(ctx, sc, path.Join(remote, e.rel), local, e.mode.Perm(), m); err != nil {
+			if err := getFile(ctx, sc, path.Join(remote, e.rel), local, 0, e.mode.Perm(), m); err != nil {
 				return err
 			}
 		case e.mode&iofs.ModeSymlink != 0:
