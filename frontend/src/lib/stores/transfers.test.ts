@@ -70,6 +70,14 @@ describe('transfers', () => {
     expect(finished).toEqual(['b:done'])
   })
 
+  it('replaces a failed job with its retry', () => {
+    transfers.add([job('e')])
+    handlers.done?.({ jobID: 'e', error: { code: 'CONN_NOT_CONNECTED', message: 'x' } })
+    transfers.retried('e', job('f'))
+    expect(transfers.list.map((j) => `${j.id}:${j.state}`)).toEqual(['f:running'])
+    expect(started).toEqual(['e', 'f'])
+  })
+
   it('records failures with a user message and cancels without one', () => {
     transfers.add([job('c'), job('d')])
     handlers.done?.({ jobID: 'c', error: { code: 'FS_PERMISSION_DENIED', message: 'x' } })

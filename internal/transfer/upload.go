@@ -3,6 +3,7 @@ package transfer
 import (
 	"context"
 	"errors"
+	"io"
 	iofs "io/fs"
 	"os"
 	"path"
@@ -95,57 +96,77 @@ func (s *Service) Upload(_ context.Context, serverID, dir string, reqs []UploadR
 	if err := fs.CheckPath(dir); err != nil {
 		return nil, err
 	}
-	sc, err := s.conns.SFTP(serverID)
-	if err != nil {
+	if _, err := s.conns.SFTP(serverID); err != nil {
 		return nil, err
 	}
 	jobs := make([]Job, 0, len(reqs))
 	for _, req := range reqs {
-		job, run, err := s.uploadJob(sc, serverID, dir, req)
+		t, run, err := s.uploadTask(serverID, dir, req)
 		if err != nil {
 			return jobs, err
 		}
-		s.start(job, run) //nolint:contextcheck // a job outlives the call that starts it
+		job := t.job
+		s.start(t, run) //nolint:contextcheck // a job outlives the call that starts it
 		jobs = append(jobs, job)
 	}
 	return jobs, nil
 }
 
-func (s *Service) uploadJob(sc *sftp.Client, serverID, dir string, req UploadRequest) (Job, func(context.Context, *meter) error, error) {
+func (s *Service) uploadTask(serverID, dir string, req UploadRequest) (*task, func(context.Context, *meter) error, error) {
 	fi, err := statLocal(req.Local)
 	if err != nil {
-		return Job{}, nil, err
+		return nil, nil, err
 	}
-	name := fi.Name()
+	t, err := newTask(Job{
+		Kind: KindUpload, ServerID: serverID, Src: req.Local,
+		Dst: path.Join(dir, fi.Name()), Dir: fi.IsDir(),
+	}, fi.Name())
+	if err != nil {
+		return nil, nil, err
+	}
+	t.replace = req.Replace
+	run, err := s.bind(t)
+	if err != nil {
+		return nil, nil, err
+	}
+	return t, run, nil
+}
+
+func (s *Service) bindUpload(t *task) (func(context.Context, *meter) error, error) {
+	sc, err := s.conns.SFTP(t.job.ServerID)
+	if err != nil {
+		return nil, err
+	}
+	local := t.job.Src
+	fi, err := statLocal(local)
+	if err != nil {
+		return nil, err
+	}
+	if fi.IsDir() != t.job.Dir {
+		return nil, apperr.New(apperr.InvalidInput, "the source changed between file and folder")
+	}
+	dir, name := path.Dir(t.job.Dst), fi.Name()
 	var replaceMode *os.FileMode
-	if req.Replace {
+	if t.replace {
 		rfi, err := sc.Lstat(path.Join(dir, name))
 		if err != nil || fi.IsDir() || !rfi.Mode().IsRegular() {
-			return Job{}, nil, apperr.New(apperr.InvalidInput, "only an existing file can be replaced")
+			return nil, apperr.New(apperr.InvalidInput, "only an existing file can be replaced")
 		}
 		mode := rfi.Mode().Perm()
 		replaceMode = &mode
 	} else {
 		name, err = freeName(name, remoteExists(sc, dir))
 		if err != nil {
-			return Job{}, nil, err
+			return nil, err
 		}
 	}
-	id, err := newID()
-	if err != nil {
-		return Job{}, nil, err
-	}
-	job := Job{
-		ID: id, Kind: KindUpload, ServerID: serverID, Name: name,
-		Src: req.Local, Dst: path.Join(dir, name), Dir: fi.IsDir(),
-	}
-	run := func(ctx context.Context, m *meter) error {
+	t.job.Name, t.job.Dst = name, path.Join(dir, name)
+	return func(ctx context.Context, m *meter) error {
 		if fi.IsDir() {
-			return mapErr("upload", s.uploadDir(ctx, sc, req.Local, dir, name, m))
+			return mapErr("upload", s.uploadDir(ctx, sc, local, dir, name, &t.part, m))
 		}
-		return mapErr("upload", uploadFile(ctx, sc, req.Local, fi, dir, name, replaceMode, m))
-	}
-	return job, run, nil
+		return mapErr("upload", uploadFile(ctx, sc, local, fi, dir, name, replaceMode, &t.part, m))
+	}, nil
 }
 
 func remoteExists(sc *sftp.Client, dir string) func(string) (bool, error) {
@@ -161,19 +182,23 @@ func remoteExists(sc *sftp.Client, dir string) func(string) (bool, error) {
 // uploadFile writes the file next to its target and renames it into
 // place. replaceMode is the mode of the file it replaces, nil when the
 // name is new; a new name is never allowed to replace anything.
-func uploadFile(ctx context.Context, sc *sftp.Client, local string, fi os.FileInfo, dir, name string, replaceMode *os.FileMode, m *meter) error {
+func uploadFile(ctx context.Context, sc *sftp.Client, local string, fi os.FileInfo, dir, name string, replaceMode *os.FileMode, p *partial, m *meter) error {
 	m.setTotal(fi.Size())
-	tmp := path.Join(dir, partName(name))
+	tmp := path.Join(dir, p.name)
 	dst := path.Join(dir, name)
-	// A leftover from an interrupted upload is ours to replace.
-	if err := sc.Remove(tmp); err != nil && !errors.Is(err, os.ErrNotExist) {
+	from, err := remoteStart(sc, tmp, fi, p)
+	if err != nil {
 		return err
+	}
+	p.remember(fi)
+	if from > 0 {
+		m.skip(from)
 	}
 	mode := fi.Mode().Perm()
 	if replaceMode != nil {
 		mode = *replaceMode
 	}
-	err := putFile(ctx, sc, local, tmp, fi.Size(), mode, m)
+	safe, err := putFile(ctx, sc, local, tmp, fi.Size(), from, mode, m)
 	if err == nil {
 		if replaceMode != nil {
 			err = sc.PosixRename(tmp, dst)
@@ -182,35 +207,58 @@ func uploadFile(ctx context.Context, sc *sftp.Client, local string, fi os.FileIn
 		}
 	}
 	if err != nil {
-		sc.Remove(tmp) //nolint:errcheck,gosec // best effort cleanup
+		afterRemoteFailure(ctx, sc, tmp, safe, lost(sc), p)
 	}
 	return err
 }
 
-// putFile copies local to a remote path that must not exist yet.
-func putFile(ctx context.Context, sc *sftp.Client, local, remote string, size int64, mode os.FileMode, m *meter) error {
+// putFile copies local to remote from offset from. At 0 the remote path
+// must not exist yet; otherwise it is cut to from and continued. It also
+// returns how much of the remote file is written without gaps.
+func putFile(ctx context.Context, sc *sftp.Client, local, remote string, size, from int64, mode os.FileMode, m *meter) (int64, error) {
 	if err := ctx.Err(); err != nil {
-		return err
+		return from, err
 	}
 	src, err := os.Open(local) //nolint:gosec // the user picked this file
 	if err != nil {
-		return err
+		return from, err
 	}
 	defer src.Close() //nolint:errcheck // read only
 
 	// O_EXCL: never write through a link someone planted at this name.
-	dst, err := sc.OpenFile(remote, os.O_WRONLY|os.O_CREATE|os.O_EXCL)
-	if err != nil {
-		return err
+	flags := os.O_WRONLY | os.O_CREATE | os.O_EXCL
+	if from > 0 {
+		flags = os.O_WRONLY
 	}
-	_, err = dst.ReadFrom(&countingReader{r: src, size: size, m: m})
+	dst, err := sc.OpenFile(remote, flags)
+	if err != nil {
+		return from, err
+	}
+	safe := from
+	if from > 0 {
+		err = dst.Truncate(from)
+		if err == nil {
+			_, err = dst.Seek(from, io.SeekStart)
+		}
+		if err == nil {
+			_, err = src.Seek(from, io.SeekStart)
+		}
+	}
+	if err == nil {
+		_, err = dst.ReadFrom(&countingReader{r: src, size: size - from, m: m})
+		// After a failed concurrent write the offset is where the first
+		// gap may start, whatever was written beyond it.
+		if off, serr := dst.Seek(0, io.SeekCurrent); serr == nil {
+			safe = off
+		}
+	}
 	if cerr := dst.Close(); err == nil {
 		err = cerr
 	}
 	if err != nil {
-		return err
+		return safe, err
 	}
-	return sc.Chmod(remote, mode)
+	return safe, sc.Chmod(remote, mode)
 }
 
 // localEntry is one item inside a local folder being uploaded.
@@ -251,14 +299,14 @@ func walkLocal(root string) ([]localEntry, int64, error) {
 
 // uploadDir builds the folder under a hidden name and renames it into
 // place at the end, so a canceled upload leaves nothing half done.
-func (s *Service) uploadDir(ctx context.Context, sc *sftp.Client, local, dir, name string, m *meter) error {
+func (s *Service) uploadDir(ctx context.Context, sc *sftp.Client, local, dir, name string, p *partial, m *meter) error {
 	entries, total, err := walkLocal(local)
 	if err != nil {
 		return err
 	}
 	m.setTotal(total)
 
-	tmp := path.Join(dir, partName(name))
+	tmp := path.Join(dir, p.name)
 	if _, err := sc.Lstat(tmp); err == nil {
 		if err := sc.RemoveAll(tmp); err != nil {
 			return err
@@ -267,6 +315,7 @@ func (s *Service) uploadDir(ctx context.Context, sc *sftp.Client, local, dir, na
 	if err := sc.Mkdir(tmp); err != nil {
 		return err
 	}
+	p.left = true
 	err = s.fillRemoteDir(ctx, sc, local, tmp, entries, m)
 	if err == nil {
 		err = sc.Rename(tmp, path.Join(dir, name)) // refuses to overwrite
@@ -274,6 +323,8 @@ func (s *Service) uploadDir(ctx context.Context, sc *sftp.Client, local, dir, na
 	if err != nil {
 		if rerr := sc.RemoveAll(tmp); rerr != nil {
 			s.log.Warn("upload cleanup failed", "app", "transfer", "op", "upload", "err", rerr)
+		} else {
+			p.left = false
 		}
 		return err
 	}
@@ -309,7 +360,7 @@ func (s *Service) fillRemoteDir(ctx context.Context, sc *sftp.Client, local, tmp
 			}
 		case e.mode.IsRegular():
 			src := filepath.Join(local, filepath.FromSlash(e.rel))
-			if err := putFile(ctx, sc, src, remote, e.size, e.mode.Perm(), m); err != nil {
+			if _, err := putFile(ctx, sc, src, remote, e.size, 0, e.mode.Perm(), m); err != nil {
 				return err
 			}
 		case e.mode&iofs.ModeSymlink != 0:

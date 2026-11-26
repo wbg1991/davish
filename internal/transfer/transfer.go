@@ -91,9 +91,11 @@ type Service struct {
 	stop context.CancelFunc
 	wg   sync.WaitGroup
 
-	// mu guards cancels.
+	// mu guards cancels and failed.
 	mu      sync.Mutex
 	cancels map[string]context.CancelFunc
+	// failed holds jobs that can be retried until they are discarded.
+	failed map[string]*task
 }
 
 // New creates the service; call Close on shutdown.
@@ -118,6 +120,7 @@ func New(conns Conns, emit Emitter, log *slog.Logger, opts Options) (*Service, e
 		root:    root,
 		stop:    stop,
 		cancels: map[string]context.CancelFunc{},
+		failed:  map[string]*task{},
 	}, nil
 }
 
@@ -134,15 +137,28 @@ func (s *Service) Cancel(jobID string) error {
 	return nil
 }
 
-// Close cancels every job and waits for their cleanup.
+// Close cancels every job and waits for their cleanup. Failed jobs cannot
+// be retried afterwards, so their local partial downloads go too; what
+// they left on a server stays, as its connection may be gone.
 func (s *Service) Close() {
 	s.stop()
 	s.wg.Wait()
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for _, t := range s.failed {
+		if t.job.Kind != KindDownload {
+			continue
+		}
+		if err := s.removePart(t); err != nil {
+			s.log.Warn("download cleanup failed", "app", "transfer", "op", "download", "err", err)
+		}
+	}
 }
 
-// start queues run as job. run reports progress through the meter and
-// must remove whatever it left behind when it fails.
-func (s *Service) start(job Job, run func(ctx context.Context, m *meter) error) {
+// start queues run as t's job. run reports progress through the meter and,
+// when it fails, removes what it wrote unless a retry can resume it.
+func (s *Service) start(t *task, run func(ctx context.Context, m *meter) error) {
+	job := t.job
 	ctx, cancel := context.WithCancel(s.root)
 	s.mu.Lock()
 	s.cancels[job.ID] = cancel
@@ -169,6 +185,16 @@ func (s *Service) start(job Job, run func(ctx context.Context, m *meter) error) 
 			}
 		case <-ctx.Done():
 			err = ctx.Err()
+		}
+		switch {
+		case errors.Is(err, context.Canceled):
+			// A retry canceled while waiting still has the earlier data.
+			if rerr := s.removePart(t); rerr != nil {
+				s.log.Warn("transfer cleanup failed", "app", "transfer", "op", job.Kind, "err", rerr)
+			}
+		case err != nil:
+			// Before transfer:done, so a retry can follow it at once.
+			s.putFailed(t)
 		}
 		s.finish(job, err)
 	}()
@@ -222,6 +248,16 @@ func (m *meter) setTotal(total int64) {
 	m.mu.Lock()
 	m.total = total
 	p := m.progress(time.Now())
+	m.mu.Unlock()
+	m.emit.Emit(events.TransferProgress, p)
+}
+
+// skip counts n bytes an earlier attempt moved, leaving them out of the
+// speed.
+func (m *meter) skip(n int64) {
+	m.mu.Lock()
+	m.done, m.lastDone, m.lastAt = n, n, time.Now()
+	p := Progress{JobID: m.id, Done: m.done, Total: m.total}
 	m.mu.Unlock()
 	m.emit.Emit(events.TransferProgress, p)
 }

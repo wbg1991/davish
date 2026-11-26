@@ -1156,7 +1156,7 @@ const ko = {
       },
       transfers: {
         does: '업로드, 다운로드, 두 서버 간 복사의 진행 상황을 보여줍니다.',
-        actions: ['전송 취소', '다운로드한 파일을 Finder에서 보기'],
+        actions: ['전송 취소', '실패한 전송 다시 시도', '다운로드한 파일을 Finder에서 보기'],
         keys: [],
         runs: ['SFTP'],
       },
@@ -2120,6 +2120,8 @@ const ko = {
     done: '완료',
     canceled: '취소됨',
     cancel: (name: string) => `“${name}” 전송 취소`,
+    retry: (name: string) => `“${name}” 전송 다시 시도`,
+    partLeft: '.davish-part 임시 파일이 남아 있을 수 있습니다.',
     clearFinished: '완료 항목 지우기',
     empty: '아직 전송이 없습니다',
     emptyHint:

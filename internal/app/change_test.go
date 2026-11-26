@@ -21,6 +21,7 @@ func TestActionBindingsMarkChanges(t *testing.T) {
 		"DockerPlanRun":     "plan only",
 		"TerminalWrite":     "keystrokes, not a command",
 		"TransferUpload":    "SFTP, not in the Command log",
+		"TransferRetry":     "SFTP, not in the Command log",
 		"DatabaseCreateSQL": "builds the statement only",
 	}
 	fn := regexp.MustCompile(`(?s)\nfunc \(a \*App\) ([A-Z]\w*)\(.*?\n}\n`)

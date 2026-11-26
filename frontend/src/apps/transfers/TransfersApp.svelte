@@ -1,6 +1,7 @@
 <script lang="ts">
   import { toUserError } from '../../lib/api/errors'
-  import { transferCancel } from '../../lib/api/transfer'
+  import { hasRuntime } from '../../lib/api/runtime'
+  import { transferCancel, transferDiscard, transferRetry } from '../../lib/api/transfer'
   import { t } from '../../lib/i18n'
   import { notifications } from '../../lib/stores/notifications.svelte'
   import { servers } from '../../lib/stores/servers.svelte'
@@ -29,20 +30,49 @@
     return servers.list.find((s) => s.id === id)?.name ?? id
   }
 
+  function report(j: Transfer, id: string, title: string, body: string) {
+    notifications.add({
+      id: `${id}-${j.id}`,
+      level: 'error',
+      title,
+      body,
+      serverID: j.serverID,
+      at: Date.now(),
+    })
+  }
+
   async function cancel(j: Transfer) {
     try {
       await transferCancel(j.id)
     } catch (e) {
       // Usually it just finished; anything else is worth saying.
-      notifications.add({
-        id: `transfer-cancel-${j.id}`,
-        level: 'error',
-        title: t.transfers.cancel(j.name),
-        body: toUserError(e).message,
-        serverID: j.serverID,
-        at: Date.now(),
+      report(j, 'transfer-cancel', t.transfers.cancel(j.name), toUserError(e).message)
+    }
+  }
+
+  /** Failed jobs with a retry on its way, so a second click does nothing. */
+  let retrying = $state<string[]>([])
+
+  async function retry(j: Transfer) {
+    retrying.push(j.id)
+    try {
+      transfers.retried(j.id, await transferRetry(j.id))
+    } catch (e) {
+      report(j, 'transfer-retry', t.transfers.retry(j.name), toUserError(e).message)
+    } finally {
+      retrying = retrying.filter((id) => id !== j.id)
+    }
+  }
+
+  function clearFinished() {
+    const failed = hasRuntime ? transfers.list.filter((j) => j.state === 'failed') : []
+    for (const j of failed) {
+      transferDiscard(j.id).catch((e: unknown) => {
+        const body = `${t.transfers.partLeft} ${toUserError(e).message}`
+        report(j, 'transfer-discard', j.name, body)
       })
     }
+    transfers.clearFinished()
   }
 </script>
 
@@ -75,9 +105,20 @@
             {/if}
             <span class="status">{statusText(j)}</span>
           </div>
+          {#if j.state === 'failed'}
+            <button
+              class="action"
+              aria-label={t.transfers.retry(j.name)}
+              title={t.transfers.retry(j.name)}
+              disabled={retrying.includes(j.id)}
+              onclick={() => retry(j)}
+            >
+              <Icon name="refresh" size={13} strokeWidth={2.4} />
+            </button>
+          {/if}
           {#if j.state === 'running'}
             <button
-              class="cancel"
+              class="action"
               aria-label={t.transfers.cancel(j.name)}
               onclick={() => cancel(j)}
             >
@@ -90,7 +131,7 @@
   {/if}
 
   <div class="footer">
-    <button class="btn" disabled={!anyFinished} onclick={() => transfers.clearFinished()}>
+    <button class="btn" disabled={!anyFinished} onclick={clearFinished}>
       {t.transfers.clearFinished}
     </button>
   </div>
@@ -191,7 +232,7 @@
     color: var(--danger);
   }
 
-  .cancel {
+  .action {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -206,7 +247,7 @@
     transition: background var(--dur-fast) var(--ease-out);
   }
 
-  .cancel:hover {
+  .action:hover {
     background: var(--fill-track);
     color: var(--fg);
   }

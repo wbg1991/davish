@@ -16,9 +16,9 @@ import (
 
 // partName is where an item is written before it gets its final name, so
 // that a canceled or failed transfer never leaves a half-written file
-// under the real name.
-func partName(name string) string {
-	return "." + name + ".davish-part"
+// under the real name. key tells apart jobs moving the same name.
+func partName(name, key string) string {
+	return "." + name + "." + key + ".davish-part"
 }
 
 // countingReader feeds an upload. Size lets sftp.File.ReadFrom send

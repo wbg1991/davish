@@ -250,7 +250,8 @@ func (m *Manager) SFTP(id string) (*sftp.Client, error) {
 
 	// Opening the subsystem is a round trip; do it outside the lock.
 	// Concurrent writes can land out of order if a transfer fails midway;
-	// that is safe because every write goes to a temporary file first.
+	// that is safe because every write goes to a temporary file first, and
+	// a resumed transfer rewrites from before the first possible gap.
 	sc, err := openSFTP(client, m.opts.DialTimeout*2)
 	if err != nil {
 		return nil, err

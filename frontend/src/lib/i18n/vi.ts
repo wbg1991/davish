@@ -1134,7 +1134,11 @@ const vi = {
       },
       transfers: {
         does: 'Tiến độ tải lên, tải xuống và copy giữa hai server.',
-        actions: ['Hủy một transfer', 'Hiện file đã tải trong Finder'],
+        actions: [
+          'Hủy một transfer',
+          'Thử lại một transfer bị lỗi',
+          'Hiện file đã tải trong Finder',
+        ],
         keys: [],
         runs: ['SFTP'],
       },
@@ -2092,6 +2096,8 @@ const vi = {
     done: 'Đã xong',
     canceled: 'Đã hủy',
     cancel: (name: string) => `Hủy chuyển “${name}”`,
+    retry: (name: string) => `Thử lại “${name}”`,
+    partLeft: 'Có thể còn tệp tạm .davish-part.',
     clearFinished: 'Xóa mục đã xong',
     empty: 'Chưa chuyển file nào',
     emptyHint:

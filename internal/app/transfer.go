@@ -49,6 +49,23 @@ func (a *App) TransferCancel(jobID string) error {
 	return a.transfers.Cancel(jobID)
 }
 
+// TransferRetry runs a failed job again as a new job, continuing a single
+// file that a lost connection stopped.
+func (a *App) TransferRetry(jobID string) (transfer.Job, error) {
+	if err := a.lock.Check(); err != nil {
+		return transfer.Job{}, err
+	}
+	return a.transfers.Retry(a.ctx, jobID)
+}
+
+// TransferDiscard forgets a failed job and removes its partial files.
+func (a *App) TransferDiscard(jobID string) error {
+	if err := a.lock.Check(); err != nil {
+		return err
+	}
+	return a.transfers.Discard(jobID)
+}
+
 // TransferReveal shows a finished download in Finder, Explorer or the
 // Linux file manager.
 func (a *App) TransferReveal(path string) error {
