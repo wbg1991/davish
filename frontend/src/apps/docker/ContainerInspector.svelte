@@ -132,12 +132,17 @@
     return ''
   }
 
+  // The menu bar can read this after the page has closed but before this
+  // component is destroyed, when the container prop is already undefined.
+  // Throwing there stops the update and leaves the page on screen.
   useAppMenu(() =>
-    actions.map((a) => ({
-      label: `${t.docker.actions[a]} ${container.name}…`,
-      disabled: busy !== null || !canDo(status, a),
-      run: () => void ask(a),
-    })),
+    container
+      ? actions.map((a) => ({
+          label: `${t.docker.actions[a]} ${container.name}…`,
+          disabled: busy !== null || !canDo(status, a),
+          run: () => void ask(a),
+        }))
+      : [],
   )
 </script>
 
