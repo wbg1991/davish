@@ -92,7 +92,7 @@ func TestBrowserProxy(t *testing.T) {
 	m, id := testsshd.Connect(t)
 	b := ports.NewBrowser(m, testsshd.Quiet())
 	t.Cleanup(b.Close)
-	site, err := b.Open(id, 80)
+	site, err := b.Open(id, 80, false)
 	if err != nil {
 		t.Fatal(err)
 	}
