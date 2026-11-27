@@ -190,9 +190,37 @@ const en = {
       unknown: 'Could not read the sshd configuration; OpenSSH defaults to on.',
       useKeyFirst:
         'Davish logs in to this server with a password. Switch to a key in the SSH keys app first, then turn off password login.',
-      how: 'The command below adds a file in /etc/ssh/sshd_config.d, checks it with sshd -t and only then reloads; if the check fails, the file is removed. sshd_config must have an Include sshd_config.d line (Ubuntu 20.04+, Debian 11+).',
-      keepOpen:
-        'Keep this session open until reconnecting with the key works (File → Disconnect, then Connect).',
+      how: 'The change is a file in /etc/ssh/sshd_config.d; your own sshd settings are not edited. sshd_config must have an Include sshd_config.d line (Ubuntu 20.04+, Debian 11+).',
+      allow: 'Allow password login',
+      offOwn:
+        'This server turned it off in its own sshd settings. Davish only undoes changes it made itself.',
+      offByDavish: 'Off: Davish turned password login off on this server.',
+      undoHint:
+        'Turning it back on only removes the file Davish added; your own sshd settings are not touched.',
+      turnOn: 'Turn password login back on',
+      turnOff: 'Turn off password login',
+      doneOff: 'Password login is off, and the key still logs in.',
+      doneOn: 'Password login is back on.',
+      blocked: {
+        noInclude: 'sshd_config does not read /etc/ssh/sshd_config.d here (older OpenSSH).',
+        match:
+          'A Match block in the sshd settings turns password login on for some users, so a global change would not reach them.',
+        methods:
+          'AuthenticationMethods asks for a password as well as a key, so turning it off would lock everyone out.',
+        control:
+          'Davish reaches this server through a control socket, so it cannot test a key login on its own.',
+        password: 'Davish logs in with a password.',
+      },
+      blockedHint:
+        'Davish will not change this from here. Fix it in the sshd settings first, then check again.',
+      checkAgain: 'Check again',
+      confirmOffTitle: 'Turn off password login?',
+      confirmOffBody:
+        'Davish checks that your key logs in over a new connection, backs up the sshd settings, turns password login off and reloads sshd. If the key then fails to log in, it undoes the change. Runs as root:',
+      confirmOffNote:
+        'Your current session stays open. Keep it until you have tried a new login with the key.',
+      confirmOnTitle: 'Turn password login back on?',
+      confirmOnBody: 'Removes the file Davish added and reloads sshd:',
     },
     failed: {
       title: (n: number) => `Failed logins (7 days): ${n}`,
@@ -353,6 +381,17 @@ const en = {
     rootRuns:
       'Needs root: Davish runs it through sudo once you confirm, asking for the sudo password once per session if needed.',
     dangerous: 'This may delete real data, not only caches. Check before you clean it.',
+    preview: {
+      loading: 'Listing the files it would remove…',
+      none: 'No files match right now.',
+      title: (shown: number, total: number) =>
+        total > 0
+          ? `It would remove these files: the largest ${shown} of ${total}. Read the list before you continue.`
+          : `It would remove these ${shown} ${shown === 1 ? 'file' : 'files'}. Read the list before you continue.`,
+      failed: 'Could not list the files. Run it only if you are sure of what the command removes.',
+      noRoot:
+        'Listed without root: folders only root can read are missing, so more files than shown may be removed.',
+    },
     tabs: { dirs: 'Folders', files: 'Large files' },
     scan: 'Scan again',
     scanning: 'Scanning the whole disk, this can take a minute or two…',
@@ -411,11 +450,11 @@ const en = {
     cleanups: {
       'docker-images': {
         title: 'Docker: images no container uses',
-        body: 'Removes every image no container uses, tagged ones too; the next run pulls them again. Command to run:',
+        body: 'Removes every image no container uses, tagged ones too. Images from a registry can be pulled again, but one you built on this server cannot: it is gone. Command to run:',
       },
       'docker-containers': {
         title: 'Docker: stopped containers',
-        body: 'Removes stopped containers and their writable layers. Command to run:',
+        body: 'Removes stopped containers and their writable layers: anything they wrote outside a volume is lost. Check the list below. Command to run:',
       },
       'docker-cache': {
         title: 'Docker: build cache',
@@ -423,11 +462,11 @@ const en = {
       },
       'docker-volumes': {
         title: 'Docker: volumes no container uses',
-        body: 'Careful: a volume may hold the data (databases, uploads) of a removed container. Removing it loses that for good. Command to run:',
+        body: 'Careful: a volume may hold the data (databases, uploads) of a removed container. Removing it loses that for good. The list below shows the volumes no container uses now; one for a container you will start later is on it too. Command to run:',
       },
       'docker-logs': {
         title: 'Docker: container logs over 10 MB',
-        body: 'Empties the containers’ JSON log files in /var/lib/docker/containers; the containers keep running and logging. Command to run:',
+        body: 'Empties the containers’ JSON log files in /var/lib/docker/containers; the containers keep running and logging, but what those logs held is lost. Command to run:',
       },
       journal: {
         title: 'systemd journal',
@@ -435,7 +474,7 @@ const en = {
       },
       logs: {
         title: 'Old rotated logs in /var/log',
-        body: 'Removes rotated log files (*.gz, *.1, *.old); logs being written are not touched. Command to run:',
+        body: 'Removes files in /var/log named like rotated logs (syslog.1, auth.log.2, *.gz, *.old). It goes by the name only, so check the list below for anything else. Command to run:',
       },
       apt: {
         title: 'apt package cache',
@@ -451,7 +490,7 @@ const en = {
       },
       tmp: {
         title: 'Temporary files older than 7 days',
-        body: 'Removes files in /tmp and /var/tmp nobody has read for 7 days. Command to run:',
+        body: 'Removes files in /tmp and /var/tmp neither read nor changed for 7 days, except the private /tmp of services. A program may still keep something it needs in them: check the list below. Command to run:',
       },
       snap: {
         title: 'Old snap revisions',
@@ -459,7 +498,7 @@ const en = {
       },
       'home-cache': {
         title: 'Caches in ~/.cache',
-        body: 'Removes programs’ caches (pip, yarn, build tools…); they rebuild them when needed. Command to run:',
+        body: 'Removes everything in ~/.cache. Programs recreate most of it, but some of it is slow or large to get again (downloaded models, browsers for testing). Check the list below. Command to run:',
       },
       npm: {
         title: 'npm cache',
@@ -2173,6 +2212,10 @@ const en = {
     themes: { system: 'Auto', light: 'Light', dark: 'Dark' },
     language: 'Language',
     languageHint: 'The language of the interface.',
+    startup: 'When Davish opens',
+    startupHint:
+      'All servers shows the list. Last server opens and connects to the one you used last. Nothing opens the last server without connecting, for servers behind a VPN or in production.',
+    startups: { all: 'All servers', last: 'Last server', none: 'Nothing' },
     langs: { vi: 'Tiếng Việt', en: 'English', zh: '简体中文', es: 'Español', ko: '한국어' },
     langRestart:
       'Davish will restart: running terminals and transfers stop, and servers reconnect on their own.',
@@ -2193,6 +2236,14 @@ const en = {
     perfBlurHint: 'Blurs whatever sits behind a window.',
     perfShadow: 'Short window shadow',
     perfShadowHint: 'A short shadow repaints faster while scrolling and dragging.',
+    dragTitle: 'Dragging windows',
+    dragLabel: 'While dragging',
+    dragFill: 'Fill the outline',
+    dragFillHint:
+      'A light tint inside the outline makes the window easier to see. Turn it off on a very slow computer for the lightest drag.',
+    dragHint:
+      'Live moves the whole window. Simple moves it too, but turns the glass off until you let go. Outline moves only an outline and puts the window there when you let go. Pick a lighter one if dragging feels slow.',
+    dragModes: { live: 'Live', simple: 'Simple', outline: 'Outline' },
     perfOpaque: 'Solid fills',
     perfOpaqueHint: 'Windows no longer blend with the wallpaper.',
     perfWallpaper: 'Wallpaper color blobs',
@@ -2201,6 +2252,8 @@ const en = {
     perfMotionHint: 'The open, close and minimize animations.',
     perfWidgets: 'Widgets',
     perfWidgetsHint: 'The widgets on the desktop. Off hides them and stops what they read.',
+    perfWallpaperImage: 'Wallpaper picture',
+    perfWallpaperImageHint: 'Show the picture you chose. Off falls back to the colored wallpaper.',
     perfNoDmabuf: 'Disable DMA-BUF',
     perfNoDmabufHint: 'A WebKitGTK workaround on Linux. Applies after a restart.',
     perfNoCompositing: 'Disable compositing',
@@ -2223,6 +2276,17 @@ const en = {
     wallpaper: 'Wallpaper color',
     wallpaperCustom: 'Pick any color',
     wallpaperColor: (c: string) => `Color ${c}`,
+    wallpaperPicture: 'Picture',
+    wallpaperPictureHint:
+      'Use a picture from this computer. It is scaled down and kept here, never uploaded.',
+    wallpaperChoose: 'Choose…',
+    wallpaperChange: 'Change…',
+    wallpaperRemove: 'Remove',
+    wallpaperBad: 'Only PNG, JPEG or WebP pictures under 50 MB.',
+    wallpaperDim: 'Dim picture',
+    wallpaperDimHint: 'Darkens the picture so icons and text stay readable.',
+    wallpaperHidden:
+      'The current preset hides the picture. Turn on Wallpaper picture in Performance.',
     menubar: 'Menu bar',
     menubarStats: 'Readings in the menu bar',
     menubarStatsHint:
@@ -2886,6 +2950,8 @@ const en = {
     noDumps: 'No dump in ~/db-backups yet: type the path of a .sql or .sql.gz file.',
     restoreBody:
       'The dump runs against the database as it is: tables it contains are usually replaced. Dump first if unsure. Runs:',
+    restoreBodyMongo:
+      'Every collection in the archive replaces the collection of the same name (mongorestore --drop), and what the current one held is lost. Collections not in the archive are kept. Dump first if unsure. Runs:',
     restored: (n: string) => `Restored ${n}.`,
     tunnel: 'Open tunnel',
     tunnelOpen: (remote: number, local: number) =>
@@ -3268,7 +3334,7 @@ const en = {
       'The config file and its link in sites-enabled are deleted. This cannot be undone. nginx keeps serving the site until it reloads.',
     removeCerts: (names: string) => `Also delete the Let's Encrypt certificate: ${names}`,
     removeCertsHint:
-      'Runs certbot delete: certbot stops renewing this domain, so renewal errors stop too. Only this site uses the certificate.',
+      'Runs certbot delete: certbot stops renewing this domain, so renewal errors stop too. No other nginx site uses it, but Davish cannot see a mail server or another program that might. Leave this off if unsure.',
     sharedCerts: (names: string) => `Keeping certificate ${names} since other sites use it too.`,
     commandIntro: 'Command to run:',
     edit: {
@@ -3478,9 +3544,16 @@ const en = {
       'A development build does not update itself. Download the new version from the release page.',
     DB_AUTH_REQUIRED:
       'This MongoDB has authentication on: it needs a MongoDB user and password (not your SSH login).',
+    DB_SYSTEM: 'The engine needs this system database, so Davish does not drop it.',
     DB_AUTH_FAILED: 'MongoDB refused this user or password.',
     SUDO_PASSWORD_REQUIRED: 'The server needs the sudo password for this.',
     SUDO_PASSWORD_WRONG: 'sudo did not accept this password.',
+    SEC_KEY_LOGIN_FAILED:
+      'The key could not log in over a new connection, so nothing was changed. Check the key in the SSH keys app first.',
+    SEC_WOULD_LOCK_OUT:
+      'This address or range could cut you off: it is too wide, or it is the address Davish connects from. Block one host or a narrower range, or run it in Terminal if you are sure.',
+    SEC_KEY_LOGIN_LOST:
+      'After the change the key could not log in, so Davish undid it. If password login is still off, remove /etc/ssh/sshd_config.d/00-davish-no-password.conf and reload sshd.',
     INVENTORY_YAML_UNSUPPORTED:
       'This inventory is YAML (or JSON). Davish only reads INI inventories for now.',
     INVENTORY_SCRIPT_UNSUPPORTED:

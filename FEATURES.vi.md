@@ -78,7 +78,7 @@ Nút **Bản đồ** trên thẻ server đã kết nối cho thấy request nào
 
 **Nhãn** giúp phân biệt môi trường. Trong hộp thoại thêm hoặc sửa server, chọn `local`, `staging`, `prod` hoặc tự gõ nhãn (tối đa 24 ký tự); nhãn lấy màu của server. Nhãn hiện cạnh tên server trên menu bar, trong menu server, trong cửa sổ này và trên thanh tiêu đề của mọi cửa sổ, và một vạch mảnh cùng màu chạy dưới menu bar, nên chữ `prod` màu đỏ luôn thấy dù đang mở app nào. Từ hai nhãn trở lên, menu server và cửa sổ này lọc được theo nhãn, ô tìm kiếm ở đây cũng khớp nhãn. Server không có nhãn trông y như trước.
 
-**Nhân bản** (icon sao chép trên thẻ hoặc hàng) mở hộp thoại thêm server đã điền sẵn từ server đó: host, cổng, user, cách đăng nhập, đường dẫn key, server nhảy, nhóm, nhãn và màu, tên thành `tên (copy)`. Sửa chỗ khác biệt rồi lưu; chưa lưu thì chưa có gì được tạo. Mật khẩu và passphrase của key không được sao chép, control socket của ssh cũng không (nó thuộc về một server).
+**Nhân bản** (icon sao chép trên thẻ hoặc hàng) mở hộp thoại thêm server đã điền sẵn từ server đó: host, cổng, user, cách đăng nhập, đường dẫn key, server nhảy, nhóm, nhãn và màu, tên thành `tên (copy)`. Sửa chỗ khác biệt rồi lưu; chưa lưu thì chưa có gì được tạo. Mật khẩu và passphrase của key không được sao chép, control socket của ssh cũng không (nó thuộc về một server). Mỗi server hiện logo của hệ điều hành nó chạy (Ubuntu, Debian, Fedora, Arch, Windows, macOS và nhiều hơn) cạnh tên, ở thẻ, danh sách và menu chọn server. Davish đọc từ `/etc/os-release` khi server kết nối và nhớ lại, nên lần sau có ngay trước khi kết nối; trước đó, và với hệ không có logo riêng, cạnh tên là hình server đơn giản.
 
 <img src="assets/screenshots/servers.jpg" alt="Mọi server theo thư mục nhóm, kèm nhãn" width="100%">
 
@@ -96,7 +96,7 @@ Dịch vụ systemd theo trạng thái, chi tiết và journal; khởi động, 
 
 ## Không phải root?
 
-Đăng nhập bằng user có quyền `sudo` thì các app chạy bằng root những gì server từ chối: Services, Docker (khi không thuộc nhóm `docker`), Cron, Logs, Files và Editor, Disk, Nginx, An ninh và Database. Davish hiện đúng lệnh và hỏi mật khẩu sudo một lần cho mỗi server trong mỗi phiên: các app của server đó dùng chung cho tới khi 15 phút không dùng tới (giống chính sudo; chọn 5 phút, 1 giờ hoặc cả phiên ở **Cài đặt → Bảo mật**), khi bạn ngắt kết nối, mất kết nối hoặc khóa app. Sau đó sẽ hỏi lại. Mật khẩu chỉ giữ trong bộ nhớ (không ghi ra đĩa, keychain hay log) và đưa cho sudo qua stdin, không bao giờ trên dòng lệnh. **Quên mật khẩu sudo** trong menu server xóa nó ngay. Sudo không cần mật khẩu thì không hỏi gì. User không có quyền sudo thì không được hỏi. Những gì có thể khóa bạn khỏi server (bật ufw, tắt đăng nhập mật khẩu) và đường dẫn mà user khác có thể tráo vẫn chỉ qua Terminal.
+Đăng nhập bằng user có quyền `sudo` thì các app chạy bằng root những gì server từ chối: Services, Docker (khi không thuộc nhóm `docker`), Cron, Logs, Files và Editor, Disk, Nginx, An ninh và Database. Davish hiện đúng lệnh và hỏi mật khẩu sudo một lần cho mỗi server trong mỗi phiên: các app của server đó dùng chung cho tới khi 15 phút không dùng tới (giống chính sudo; chọn 5 phút, 1 giờ hoặc cả phiên ở **Cài đặt → Bảo mật**), khi bạn ngắt kết nối, mất kết nối hoặc khóa app. Sau đó sẽ hỏi lại. Mật khẩu chỉ giữ trong bộ nhớ (không ghi ra đĩa, keychain hay log) và đưa cho sudo qua stdin, không bao giờ trên dòng lệnh. **Quên mật khẩu sudo** trong menu server xóa nó ngay. Sudo không cần mật khẩu thì không hỏi gì. User không có quyền sudo thì không được hỏi. Những gì có thể khóa bạn khỏi server (bật ufw) và đường dẫn mà user khác có thể tráo vẫn chỉ qua Terminal.
 
 ## Docker
 
@@ -203,7 +203,7 @@ Xóa thư mục hoặc file, hoặc làm rỗng file như log để chương tr�
 
 ## An ninh
 
-Ai đăng nhập qua SSH và ai đang dò. Phía trên là số liệu 7 ngày (lần sai, user không tồn tại, số địa chỉ, đã ban, đăng nhập thành công), biểu đồ lần sai theo giờ, địa chỉ và user bị thử nhiều nhất, đánh dấu địa chỉ fail2ban đã ban hoặc ufw đã chặn. Bên dưới là ai đang đăng nhập lúc này, mọi địa chỉ kèm tên user đã thử, đăng nhập gần đây, ufw và fail2ban. Đăng nhập sai và Đã chặn là bảng bôi đen, copy được: mỗi địa chỉ kèm số lần, user đã thử, lần thử cuối, đã chặn hay chưa, nút Chặn hoặc Bỏ chặn ngay trên dòng; tick nhiều dòng để chặn một lần. Mọi lần chặn, bỏ chặn, ban, bỏ ban đều hiện đúng lệnh trước, xác nhận là chạy qua `sudo`, hỏi mật khẩu sudo một lần mỗi phiên; những gì cần root để đọc (`lastb`, ufw, fail2ban) cũng được đọc bằng root. Tắt đăng nhập mật khẩu qua Terminal, có `sshd -t` trước khi reload.
+Ai đăng nhập qua SSH và ai đang dò. Phía trên là số liệu 7 ngày (lần sai, user không tồn tại, số địa chỉ, đã ban, đăng nhập thành công), biểu đồ lần sai theo giờ, địa chỉ và user bị thử nhiều nhất, đánh dấu địa chỉ fail2ban đã ban hoặc ufw đã chặn. Bên dưới là ai đang đăng nhập lúc này, mọi địa chỉ kèm tên user đã thử, đăng nhập gần đây, ufw và fail2ban. Đăng nhập sai và Đã chặn là bảng bôi đen, copy được: mỗi địa chỉ kèm số lần, user đã thử, lần thử cuối, đã chặn hay chưa, nút Chặn hoặc Bỏ chặn ngay trên dòng; tick nhiều dòng để chặn một lần. Mọi lần chặn, bỏ chặn, ban, bỏ ban đều hiện đúng lệnh trước, xác nhận là chạy qua `sudo`, hỏi mật khẩu sudo một lần mỗi phiên; những gì cần root để đọc (`lastb`, ufw, fail2ban) cũng được đọc bằng root. **Cho phép đăng nhập bằng mật khẩu** là một công tắc: tắt thì trước hết thử key đăng nhập được qua một kết nối mới, sao lưu cấu hình sshd, thêm một file đứng trước các file khác, kiểm tra bằng `sshd -t` và `sshd -T`, reload sshd rồi thử lại key, và hoàn tác nếu key không còn đăng nhập được. Không cho tắt khi một khối `Match` hoặc `AuthenticationMethods` sẽ khiến người ta bị khóa hoặc thay đổi không có tác dụng, hoặc khi chính Davish đang đăng nhập bằng mật khẩu. Hộp thoại hiện cả script trước; cùng công tắc đó bật lại.
 
 <img src="assets/screenshots/security.jpg" alt="Lần đăng nhập sai theo giờ, địa chỉ và user bị thử nhiều nhất" width="100%">
 
@@ -234,6 +234,8 @@ Nhập server từ `~/.ssh/config` một lần, kèm key và `ProxyJump`; Davish
 
 Menu bar thật (Tệp, Xem, Đi tới, Cửa sổ, Trợ giúp và lệnh của app đang mở), mọi phím tắt trong `⌘/`, nút `?` trên mỗi app giải thích app làm gì và chạy lệnh nào trên server, hướng dẫn nhanh lần đầu và chế độ xem thử với dữ liệu mẫu.
 
+Menu bar còn hiện CPU, RAM, ổ đĩa và mạng của server đang dùng dưới dạng vòng nhỏ (rê chuột vào để xem 15 phút gần nhất). **Cài đặt → Chung → Khi mở Davish** chọn cái gì hiện lúc khởi động: **Tất cả server**, **server cuối** (mở và kết nối như Davish vẫn làm) hoặc **không gì** (mở workspace của server cuối mà không kết nối, cho server sau VPN hoặc đang chạy thật). Bản cài mới mở Tất cả server; nếu bạn đã có server thì giữ server cuối.
+
 <table><tr>
   <td><img src="assets/screenshots/menu.jpg" alt="Menu Đi tới với phím tắt"></td>
   <td><img src="assets/screenshots/help.jpg" alt="Trợ giúp của một app"></td>
@@ -254,9 +256,9 @@ Davish tìm bản mới trên GitHub lúc mở và mỗi 6 giờ (tắt được
 
 ## Sáng và tối
 
-Davish có giao diện sáng và tối. Mặc định theo máy và tự đổi khi hệ điều hành đổi; muốn giữ một kiểu thì chọn Sáng hoặc Tối trong Cài đặt → Giao diện → Chế độ. Terminal và Logs vẫn tối như cũ, màu hình nền đã chọn được giữ và dịu đi cho nền tối.
+Davish có giao diện sáng và tối. Mặc định theo máy và tự đổi khi hệ điều hành đổi; muốn giữ một kiểu thì chọn Sáng hoặc Tối trong Cài đặt → Giao diện → Chế độ. Terminal và Logs vẫn tối như cũ, màu hình nền đã chọn được giữ và dịu đi cho nền tối. Cài đặt → Giao diện còn cho dùng một **ảnh** từ máy bạn làm hình nền (PNG, JPEG hoặc WebP, thu nhỏ và giữ trên máy này, không tải lên đâu) kèm mức làm tối để icon vẫn dễ đọc; mức hiệu năng Light ẩn ảnh, và khi chưa chọn ảnh thì không đổi gì.
 
-Cài đặt → Hiệu năng chọn mức Davish dành cho hiệu ứng của chính nó: **Đẹp** (kính mờ), **Cân bằng** (bỏ độ mờ), **Nhẹ** (nền đặc, bóng ngắn, hình nền phẳng, không chuyển động), hoặc **Tự động**: giữ giao diện đầy đủ và gợi ý Nhẹ khi máy vẽ chậm. **Nâng cao** chỉnh từng hiệu ứng riêng. Đóng góp bởi @tian2992.
+Cài đặt → Hiệu năng chọn mức Davish dành cho hiệu ứng của chính nó: **Đẹp** (kính mờ), **Cân bằng** (bỏ độ mờ), **Nhẹ** (nền đặc, bóng ngắn, hình nền phẳng, không chuyển động), hoặc **Tự động**: giữ giao diện đầy đủ và gợi ý Nhẹ khi máy vẽ chậm. **Nâng cao** chỉnh từng hiệu ứng riêng. Đóng góp bởi @tian2992. **Kéo cửa sổ** chọn cách cửa sổ đi theo chuột: **Trực tiếp** (cả cửa sổ), **Đơn giản** (cũng vậy, nhưng tắt kính cho tới khi thả) hoặc **Viền** (chỉ một đường viền di chuyển, thả ra thì cửa sổ mới nhảy tới đó), cho máy kéo thấy chậm. Viền mặc định có nền mờ bên trong; **Tô nền viền** tắt nền đó để kéo nhẹ nhất.
 
 Dock mặc định nằm dưới; Cài đặt → Dock cho chuyển sang cạnh trái, phải hoặc trên (cửa sổ chừa chỗ cho Dock, thu nhỏ cửa sổ thì nó co vào icon của mình) và bỏ lớp kính để chỉ còn các icon trên hình nền.
 

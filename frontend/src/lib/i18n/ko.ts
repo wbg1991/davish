@@ -199,9 +199,38 @@ const ko = {
       unknown: 'sshd 설정을 읽지 못했습니다. OpenSSH의 기본값은 켜짐입니다.',
       useKeyFirst:
         'Davish가 이 서버에 비밀번호로 로그인하고 있습니다. 먼저 SSH 키 앱에서 키 로그인으로 바꾼 뒤 비밀번호 로그인을 끄세요.',
-      how: '아래 명령은 /etc/ssh/sshd_config.d에 파일을 추가하고 sshd -t로 검사한 뒤에만 다시 불러옵니다. 검사에 실패하면 파일을 삭제합니다. sshd_config에 Include sshd_config.d 줄이 있어야 합니다(Ubuntu 20.04 이상, Debian 11 이상).',
-      keepOpen:
-        '키로 다시 연결되는 것을 확인할 때까지 이 세션을 열어 두세요(파일 → 연결 끊기 후 연결).',
+      how: '변경 사항은 /etc/ssh/sshd_config.d의 파일 하나이며, 직접 작성한 sshd 설정은 수정하지 않습니다. sshd_config에 Include sshd_config.d 줄이 있어야 합니다(Ubuntu 20.04 이상, Debian 11 이상).',
+      allow: '비밀번호 로그인 허용',
+      offOwn:
+        '이 서버는 자체 sshd 설정에서 비밀번호 로그인을 껐습니다. Davish는 직접 바꾼 내용만 되돌립니다.',
+      offByDavish: '꺼짐: Davish가 이 서버의 비밀번호 로그인을 껐습니다.',
+      undoHint:
+        '다시 켜면 Davish가 추가한 파일만 삭제합니다. 직접 작성한 sshd 설정은 건드리지 않습니다.',
+      turnOn: '비밀번호 로그인 다시 켜기',
+      turnOff: '비밀번호 로그인 끄기',
+      doneOff: '비밀번호 로그인이 꺼졌고, 키로는 계속 로그인됩니다.',
+      doneOn: '비밀번호 로그인이 다시 켜졌습니다.',
+      blocked: {
+        noInclude:
+          '이 서버의 sshd_config는 /etc/ssh/sshd_config.d를 읽지 않습니다(오래된 OpenSSH).',
+        match:
+          'sshd 설정의 Match 블록이 일부 사용자에게 비밀번호 로그인을 켜 두어, 전역 설정을 바꿔도 적용되지 않습니다.',
+        methods:
+          'AuthenticationMethods가 키와 함께 비밀번호도 요구하므로, 끄면 아무도 로그인할 수 없습니다.',
+        control:
+          'Davish가 control socket을 통해 이 서버에 접속하므로, 키 로그인을 직접 시험할 수 없습니다.',
+        password: 'Davish가 비밀번호로 로그인하고 있습니다.',
+      },
+      blockedHint:
+        'Davish는 여기에서 이 설정을 바꾸지 않습니다. 먼저 sshd 설정을 고친 뒤 다시 확인하세요.',
+      checkAgain: '다시 확인',
+      confirmOffTitle: '비밀번호 로그인을 끌까요?',
+      confirmOffBody:
+        'Davish는 새 연결에서 키 로그인이 되는지 확인하고, sshd 설정을 백업한 다음 비밀번호 로그인을 끄고 sshd를 다시 불러옵니다. 그 뒤 키 로그인이 실패하면 변경을 되돌립니다. root로 실행:',
+      confirmOffNote:
+        '현재 세션은 열린 상태로 유지됩니다. 키로 새로 로그인해 볼 때까지 닫지 마세요.',
+      confirmOnTitle: '비밀번호 로그인을 다시 켤까요?',
+      confirmOnBody: 'Davish가 추가한 파일을 삭제하고 sshd를 다시 불러옵니다:',
     },
     failed: {
       title: (n: number) => `로그인 실패(7일): ${n}회`,
@@ -362,6 +391,18 @@ const ko = {
     rootRuns:
       'root 권한 필요: 확인하면 Davish가 sudo로 실행하며, 필요하면 세션당 한 번 sudo 비밀번호를 묻습니다.',
     dangerous: '캐시뿐 아니라 실제 데이터가 삭제될 수 있습니다. 정리하기 전에 확인하세요.',
+    preview: {
+      loading: '삭제될 파일을 나열하는 중…',
+      none: '지금은 일치하는 파일이 없습니다.',
+      title: (shown: number, total: number) =>
+        total > 0
+          ? `다음 파일이 삭제됩니다: 전체 ${total}개 중 가장 큰 ${shown}개. 계속하기 전에 목록을 읽어 보세요.`
+          : `다음 파일 ${shown}개가 삭제됩니다. 계속하기 전에 목록을 읽어 보세요.`,
+      failed:
+        '파일 목록을 가져오지 못했습니다. 이 명령이 무엇을 삭제하는지 확실할 때만 실행하세요.',
+      noRoot:
+        'root 없이 나열했습니다. root만 읽을 수 있는 폴더가 빠져 있어, 표시된 것보다 많은 파일이 삭제될 수 있습니다.',
+    },
     tabs: { dirs: '폴더', files: '큰 파일' },
     scan: '다시 검사',
     scanning: '디스크 전체를 검사하는 중입니다. 1~2분 정도 걸릴 수 있습니다…',
@@ -420,11 +461,11 @@ const ko = {
     cleanups: {
       'docker-images': {
         title: 'Docker: 어떤 컨테이너도 사용하지 않는 이미지',
-        body: '태그가 있는 것을 포함해 어떤 컨테이너도 사용하지 않는 이미지를 모두 삭제합니다. 다음 실행 때 다시 내려받습니다. 실행할 명령:',
+        body: '어떤 컨테이너도 사용하지 않는 이미지를 태그가 있는 것까지 모두 삭제합니다. 레지스트리의 이미지는 다시 받을 수 있지만, 이 서버에서 빌드한 이미지는 다시 받을 수 없이 사라집니다. 실행할 명령:',
       },
       'docker-containers': {
         title: 'Docker: 중지된 컨테이너',
-        body: '중지된 컨테이너와 쓰기 가능 레이어를 삭제합니다. 실행할 명령:',
+        body: '중지된 컨테이너와 쓰기 가능 레이어를 삭제합니다. 볼륨 밖에 기록한 내용은 모두 사라집니다. 아래 목록을 확인하세요. 실행할 명령:',
       },
       'docker-cache': {
         title: 'Docker: 빌드 캐시',
@@ -432,11 +473,11 @@ const ko = {
       },
       'docker-volumes': {
         title: 'Docker: 어떤 컨테이너도 사용하지 않는 볼륨',
-        body: '주의: 볼륨에는 삭제된 컨테이너의 데이터(데이터베이스, 업로드 파일)가 있을 수 있습니다. 삭제하면 복구할 수 없습니다. 실행할 명령:',
+        body: '주의: 볼륨에는 삭제된 컨테이너의 데이터(데이터베이스, 업로드 파일)가 들어 있을 수 있습니다. 삭제하면 영구히 사라집니다. 아래 목록은 지금 어떤 컨테이너도 사용하지 않는 볼륨이며, 나중에 시작할 컨테이너의 볼륨도 포함됩니다. 실행할 명령:',
       },
       'docker-logs': {
         title: 'Docker: 10MB가 넘는 컨테이너 로그',
-        body: '/var/lib/docker/containers에 있는 컨테이너의 JSON 로그 파일을 비웁니다. 컨테이너는 계속 실행되며 로그를 기록합니다. 실행할 명령:',
+        body: '/var/lib/docker/containers에 있는 컨테이너의 JSON 로그 파일을 비웁니다. 컨테이너는 계속 실행되며 로그도 남기지만, 기존 로그 내용은 사라집니다. 실행할 명령:',
       },
       journal: {
         title: 'systemd journal',
@@ -444,7 +485,7 @@ const ko = {
       },
       logs: {
         title: '/var/log의 순환된 옛 로그',
-        body: '순환된 로그 파일(*.gz, *.1, *.old)을 삭제합니다. 기록 중인 로그는 건드리지 않습니다. 실행할 명령:',
+        body: '/var/log에서 순환된 로그처럼 이름 붙은 파일(syslog.1, auth.log.2, *.gz, *.old)을 삭제합니다. 이름만 보고 판단하므로, 다른 파일이 섞여 있지 않은지 아래 목록을 확인하세요. 실행할 명령:',
       },
       apt: {
         title: 'apt 패키지 캐시',
@@ -460,7 +501,7 @@ const ko = {
       },
       tmp: {
         title: '7일이 지난 임시 파일',
-        body: '/tmp와 /var/tmp에서 7일 동안 아무도 읽지 않은 파일을 삭제합니다. 실행할 명령:',
+        body: '/tmp와 /var/tmp에서 7일 동안 읽히지도 바뀌지도 않은 파일을 삭제합니다. 서비스의 비공개 /tmp는 제외합니다. 프로그램에 필요한 파일이 남아 있을 수 있으니 아래 목록을 확인하세요. 실행할 명령:',
       },
       snap: {
         title: '옛 snap 리비전',
@@ -468,7 +509,7 @@ const ko = {
       },
       'home-cache': {
         title: '~/.cache의 캐시',
-        body: '프로그램(pip, yarn, 빌드 도구 등)의 캐시를 삭제합니다. 필요할 때 다시 만들어집니다. 실행할 명령:',
+        body: '~/.cache의 모든 내용을 삭제합니다. 대부분은 프로그램이 다시 만들지만, 일부는 다시 받는 데 오래 걸리거나 용량이 큽니다(내려받은 모델, 테스트용 브라우저). 아래 목록을 확인하세요. 실행할 명령:',
       },
       npm: {
         title: 'npm 캐시',
@@ -2168,6 +2209,10 @@ const ko = {
     themes: { system: '자동', light: '밝게', dark: '어둡게' },
     language: '언어',
     languageHint: '화면에 표시할 언어입니다.',
+    startup: 'Davish를 열 때',
+    startupHint:
+      '모든 서버는 목록을 보여 줍니다. 마지막 서버는 최근에 사용한 서버를 열고 연결합니다. 열지 않음은 마지막 서버를 연결하지 않고 엽니다. VPN 뒤에 있거나 운영 중인 서버에 알맞습니다.',
+    startups: { all: '모든 서버', last: '마지막 서버', none: '열지 않음' },
     langs: { vi: 'Tiếng Việt', en: 'English', zh: '简体中文', es: 'Español', ko: '한국어' },
     langRestart:
       'Davish가 다시 시작됩니다. 실행 중인 터미널과 전송은 중지되며 서버는 자동으로 다시 연결합니다.',
@@ -2187,6 +2232,14 @@ const ko = {
     perfBlurHint: '창 뒤에 있는 내용을 흐리게 표시합니다.',
     perfShadow: '짧은 창 그림자',
     perfShadowHint: '그림자가 짧으면 스크롤하고 드래그할 때 더 빨리 다시 그립니다.',
+    dragTitle: '창 드래그',
+    dragLabel: '드래그하는 동안',
+    dragFill: '윤곽선 안 채우기',
+    dragFillHint:
+      '윤곽선 안을 옅게 칠해 창이 더 잘 보이게 합니다. 아주 느린 컴퓨터에서는 끄면 드래그가 가장 가볍습니다.',
+    dragHint:
+      '실시간은 창 전체를 옮깁니다. 단순도 창을 옮기지만 놓을 때까지 유리 효과를 끕니다. 윤곽선은 윤곽선만 옮기고 놓으면 창을 그 자리에 둡니다. 드래그가 느리면 더 가벼운 방식을 고르세요.',
+    dragModes: { live: '실시간', simple: '단순', outline: '윤곽선' },
     perfOpaque: '불투명 배경',
     perfOpaqueHint: '창이 배경화면과 섞이지 않습니다.',
     perfWallpaper: '배경화면 색 무늬',
@@ -2195,6 +2248,8 @@ const ko = {
     perfMotionHint: '열기, 닫기, 최소화 애니메이션입니다.',
     perfWidgets: '위젯',
     perfWidgetsHint: '데스크톱의 위젯입니다. 끄면 위젯을 숨기고 위젯의 데이터 읽기를 멈춥니다.',
+    perfWallpaperImage: '배경화면 사진',
+    perfWallpaperImageHint: '선택한 사진을 표시합니다. 끄면 색상 배경화면을 사용합니다.',
     perfNoDmabuf: 'DMA-BUF 끄기',
     perfNoDmabufHint: 'Linux의 WebKitGTK 우회 설정입니다. 다시 시작하면 적용됩니다.',
     perfNoCompositing: '컴포지팅 끄기',
@@ -2217,6 +2272,16 @@ const ko = {
     wallpaper: '배경화면 색상',
     wallpaperCustom: '원하는 색상 선택',
     wallpaperColor: (c: string) => `색상 ${c}`,
+    wallpaperPicture: '사진',
+    wallpaperPictureHint:
+      '이 컴퓨터의 사진을 사용합니다. 크기를 줄여 이 컴퓨터에 보관하며, 업로드하지 않습니다.',
+    wallpaperChoose: '선택…',
+    wallpaperChange: '변경…',
+    wallpaperRemove: '제거',
+    wallpaperBad: '50MB 미만의 PNG, JPEG, WebP 사진만 사용할 수 있습니다.',
+    wallpaperDim: '사진 어둡게',
+    wallpaperDimHint: '아이콘과 글자가 잘 보이도록 사진을 어둡게 합니다.',
+    wallpaperHidden: '현재 프리셋에서는 사진이 숨겨집니다. 성능에서 배경화면 사진을 켜세요.',
     menubar: '메뉴 막대',
     menubarStats: '메뉴 막대의 측정값',
     menubarStatsHint:
@@ -2874,6 +2939,8 @@ const ko = {
     noDumps: '~/db-backups에 아직 덤프가 없습니다. .sql 또는 .sql.gz 파일의 경로를 입력하세요.',
     restoreBody:
       '덤프를 현재 데이터베이스에 그대로 실행합니다. 덤프에 있는 테이블은 보통 교체됩니다. 확실하지 않으면 먼저 덤프하세요. 실행:',
+    restoreBodyMongo:
+      '아카이브의 모든 컬렉션이 같은 이름의 컬렉션을 대체하며(mongorestore --drop), 현재 컬렉션의 내용은 사라집니다. 아카이브에 없는 컬렉션은 유지됩니다. 확실하지 않으면 먼저 덤프하세요. 실행:',
     restored: (n: string) => `${n} 복원함.`,
     tunnel: '터널 열기',
     tunnelOpen: (remote: number, local: number) =>
@@ -3255,7 +3322,7 @@ const ko = {
       '설정 파일과 sites-enabled의 링크를 삭제합니다. 되돌릴 수 없습니다. nginx를 다시 불러오기 전까지는 사이트를 계속 제공합니다.',
     removeCerts: (names: string) => `Let's Encrypt 인증서도 삭제: ${names}`,
     removeCertsHint:
-      'certbot delete를 실행합니다. certbot이 이 도메인의 갱신을 중단하므로 갱신 오류도 사라집니다. 이 사이트만 인증서를 사용합니다.',
+      'certbot delete를 실행합니다. certbot이 이 도메인의 갱신을 중단하므로 갱신 오류도 사라집니다. 이 인증서를 사용하는 다른 nginx 사이트는 없지만, 메일 서버 같은 다른 프로그램이 사용하는지는 Davish가 알 수 없습니다. 확실하지 않으면 끄세요.',
     sharedCerts: (names: string) => `다른 사이트도 사용하므로 인증서를 유지합니다: ${names}`,
     commandIntro: '실행할 명령:',
     edit: {
@@ -3464,9 +3531,16 @@ const ko = {
       '개발용 빌드는 스스로 업데이트하지 않습니다. 릴리스 페이지에서 새 버전을 내려받으세요.',
     DB_AUTH_REQUIRED:
       '이 MongoDB는 인증이 켜져 있습니다. SSH 로그인이 아닌 MongoDB 사용자와 비밀번호가 필요합니다.',
+    DB_SYSTEM: '엔진에 필요한 시스템 데이터베이스이므로 Davish는 삭제하지 않습니다.',
     DB_AUTH_FAILED: 'MongoDB가 이 사용자 또는 비밀번호를 거부했습니다.',
     SUDO_PASSWORD_REQUIRED: '서버에서 이 작업을 하려면 sudo 비밀번호가 필요합니다.',
     SUDO_PASSWORD_WRONG: 'sudo가 이 비밀번호를 받아들이지 않았습니다.',
+    SEC_KEY_LOGIN_FAILED:
+      '새 연결에서 키로 로그인할 수 없어 아무것도 바꾸지 않았습니다. 먼저 SSH 키 앱에서 키를 확인하세요.',
+    SEC_WOULD_LOCK_OUT:
+      '이 주소나 대역은 내 접속을 끊을 수 있습니다. 범위가 너무 넓거나 Davish가 접속해 오는 주소입니다. 호스트 하나나 더 좁은 대역을 차단하거나, 확실하면 터미널에서 실행하세요.',
+    SEC_KEY_LOGIN_LOST:
+      '변경 후 키로 로그인할 수 없어 Davish가 변경을 되돌렸습니다. 비밀번호 로그인이 여전히 꺼져 있으면 /etc/ssh/sshd_config.d/00-davish-no-password.conf를 삭제하고 sshd를 다시 불러오세요.',
     INVENTORY_YAML_UNSUPPORTED:
       '이 인벤토리는 YAML(또는 JSON) 형식입니다. Davish는 아직 INI 인벤토리만 읽습니다.',
     INVENTORY_SCRIPT_UNSUPPORTED:

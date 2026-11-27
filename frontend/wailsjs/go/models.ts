@@ -140,6 +140,7 @@ export namespace app {
 	    render: boolean;
 	    preset: string;
 	    widgets: number;
+	    picture: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new BenchConfig(source);
@@ -150,6 +151,7 @@ export namespace app {
 	        this.render = source["render"];
 	        this.preset = source["preset"];
 	        this.widgets = source["widgets"];
+	        this.picture = source["picture"];
 	    }
 	}
 	export class FleetRun {
@@ -197,6 +199,7 @@ export namespace app {
 	    group?: string;
 	    jumpID?: string;
 	    controlPath?: string;
+	    distro?: string;
 	    password: string;
 	    passphrase: string;
 	
@@ -218,6 +221,7 @@ export namespace app {
 	        this.group = source["group"];
 	        this.jumpID = source["jumpID"];
 	        this.controlPath = source["controlPath"];
+	        this.distro = source["distro"];
 	        this.password = source["password"];
 	        this.passphrase = source["passphrase"];
 	    }
@@ -235,6 +239,7 @@ export namespace app {
 	    group?: string;
 	    jumpID?: string;
 	    controlPath?: string;
+	    distro?: string;
 	    hasPassword: boolean;
 	    hasPassphrase: boolean;
 	    state: string;
@@ -257,6 +262,7 @@ export namespace app {
 	        this.group = source["group"];
 	        this.jumpID = source["jumpID"];
 	        this.controlPath = source["controlPath"];
+	        this.distro = source["distro"];
 	        this.hasPassword = source["hasPassword"];
 	        this.hasPassphrase = source["hasPassphrase"];
 	        this.state = source["state"];
@@ -1068,6 +1074,7 @@ export namespace disk {
 	    root: boolean;
 	    sudoCommand?: string;
 	    danger?: boolean;
+	    listable?: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new Cleanup(source);
@@ -1082,6 +1089,7 @@ export namespace disk {
 	        this.root = source["root"];
 	        this.sudoCommand = source["sudoCommand"];
 	        this.danger = source["danger"];
+	        this.listable = source["listable"];
 	    }
 	}
 	export class DeletedFile {
@@ -1184,6 +1192,53 @@ export namespace disk {
 		    return a;
 		}
 	}
+	export class PreviewFile {
+	    path: string;
+	    size: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new PreviewFile(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.path = source["path"];
+	        this.size = source["size"];
+	    }
+	}
+	export class Preview {
+	    files: PreviewFile[];
+	    root: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new Preview(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.files = this.convertValues(source["files"], PreviewFile);
+	        this.root = source["root"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	
 	export class TruncatePlan {
 	    command: string;
 	    sudo: string;
@@ -3501,6 +3556,59 @@ export namespace security {
 	        this.terminal = source["terminal"];
 	    }
 	}
+	export class PasswordPlan {
+	    status: Plan;
+	    disable: Plan;
+	    enable: Plan;
+	
+	    static createFrom(source: any = {}) {
+	        return new PasswordPlan(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.status = this.convertValues(source["status"], Plan);
+	        this.disable = this.convertValues(source["disable"], Plan);
+	        this.enable = this.convertValues(source["enable"], Plan);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class PasswordStatus {
+	    password: string;
+	    kbdInteractive: string;
+	    ours: boolean;
+	    blocked: string[];
+	
+	    static createFrom(source: any = {}) {
+	        return new PasswordStatus(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.password = source["password"];
+	        this.kbdInteractive = source["kbdInteractive"];
+	        this.ours = source["ours"];
+	        this.blocked = source["blocked"];
+	    }
+	}
+	
 	export class Session {
 	    user: string;
 	    tty: string;
@@ -3556,6 +3664,7 @@ export namespace security {
 	    ufw: Firewall;
 	    fail2ban: Firewall;
 	    passwordAuth: string;
+	    passwordOurs: boolean;
 	    disablePassword: string;
 	
 	    static createFrom(source: any = {}) {
@@ -3586,6 +3695,7 @@ export namespace security {
 	        this.ufw = this.convertValues(source["ufw"], Firewall);
 	        this.fail2ban = this.convertValues(source["fail2ban"], Firewall);
 	        this.passwordAuth = source["passwordAuth"];
+	        this.passwordOurs = source["passwordOurs"];
 	        this.disablePassword = source["disablePassword"];
 	    }
 	

@@ -5,11 +5,14 @@
   import { startBench } from './lib/api/bench'
   import { setWindowBackground } from './lib/api/runtime'
   import Desktop from './lib/shell/Desktop.svelte'
+  import { wm } from './lib/wm/windowManager.svelte'
   import LockScreen from './lib/shell/LockScreen.svelte'
   import { perfCheck } from './lib/shell/perfCheck.svelte'
   import { appLock } from './lib/stores/lock.svelte'
   import { resolveTheme, settings } from './lib/stores/settings.svelte'
-  import { mixWallpaper } from './lib/wallpaper'
+  import { wallpaperImage } from './lib/stores/wallpaperImage.svelte'
+  import { mixWallpaper, wallpaperMode } from './lib/wallpaper'
+  import { toneOf } from './lib/wallpaperTone'
 
   const systemDark = new MediaQuery('prefers-color-scheme: dark')
 
@@ -17,10 +20,21 @@
     const root = document.documentElement
     const knobs = perfCheck.probing ?? settings.knobs
     root.dataset.theme = resolveTheme(settings.theme, systemDark.current)
-    root.dataset.perfBlur = String(knobs.blur)
-    root.dataset.perfOpaque = String(knobs.opaque)
-    root.dataset.perfShadow = knobs.shadow
-    root.dataset.perfWallpaper = knobs.wallpaper ? 'blobs' : 'flat'
+    // While a window is dragged in the simple mode, the light look is painted.
+    const lite = wm.dragLite
+    root.dataset.perfBlur = String(knobs.blur && !lite)
+    root.dataset.perfOpaque = String(knobs.opaque || lite)
+    root.dataset.perfShadow = lite ? 'short' : knobs.shadow
+    // The picture is read from disk only when the preset lets it show.
+    if (knobs.wallpaperImage) void wallpaperImage.ensure()
+    const mode = wallpaperMode(knobs, wallpaperImage.has)
+    root.dataset.perfWallpaper = mode
+    // Over a picture the menu bar follows the picture, not the theme: light
+    // text for a dark one, dark text for a bright one (tokens.css).
+    const luma = wallpaperImage.luma
+    if (mode === 'image' && luma !== null)
+      root.dataset.barTone = toneOf(luma, settings.wallpaperDim)
+    else delete root.dataset.barTone
     root.dataset.reduceMotion = String(!knobs.motion)
     const accent = settings.wallpaperAccent
     root.style.setProperty('--wallpaper-accent', accent)
@@ -29,7 +43,7 @@
     const mix = Number.parseFloat(style.getPropertyValue('--wallpaper-mix'))
     const flat = mixWallpaper(accent, base, Number.isFinite(mix) ? mix : 100)
     if (flat) root.style.setProperty('--wallpaper-flat', flat)
-    setWindowBackground(!knobs.wallpaper && flat ? flat : base)
+    setWindowBackground(mode === 'flat' && flat ? flat : base)
     if (!root.dataset.wallpaperReady)
       requestAnimationFrame(() => (root.dataset.wallpaperReady = 'true'))
   })

@@ -200,9 +200,37 @@ const es = {
       unknown: 'No se pudo leer la configuración de sshd; OpenSSH lo activa por defecto.',
       useKeyFirst:
         'Davish inicia sesión en este servidor con contraseña. Cambia primero a una clave en la app Claves SSH y luego desactiva el inicio con contraseña.',
-      how: 'El comando de abajo añade un archivo en /etc/ssh/sshd_config.d, lo comprueba con sshd -t y solo entonces recarga; si la comprobación falla, el archivo se elimina. sshd_config debe tener una línea Include sshd_config.d (Ubuntu 20.04+, Debian 11+).',
-      keepOpen:
-        'Mantén esta sesión abierta hasta que reconectar con la clave funcione (Archivo → Desconectar y luego Conectar).',
+      how: 'El cambio es un archivo en /etc/ssh/sshd_config.d; tus propios ajustes de sshd no se editan. sshd_config debe tener la línea Include sshd_config.d (Ubuntu 20.04+, Debian 11+).',
+      allow: 'Permitir acceso con contraseña',
+      offOwn:
+        'Este servidor lo desactivó en sus propios ajustes de sshd. Davish solo deshace los cambios que hizo él mismo.',
+      offByDavish: 'Desactivado: Davish desactivó el acceso con contraseña en este servidor.',
+      undoHint:
+        'Volver a activarlo solo elimina el archivo que añadió Davish; tus ajustes de sshd no se tocan.',
+      turnOn: 'Volver a activar el acceso con contraseña',
+      turnOff: 'Desactivar el acceso con contraseña',
+      doneOff: 'El acceso con contraseña está desactivado y la clave sigue entrando.',
+      doneOn: 'El acceso con contraseña está activado de nuevo.',
+      blocked: {
+        noInclude: 'Aquí sshd_config no lee /etc/ssh/sshd_config.d (OpenSSH antiguo).',
+        match:
+          'Un bloque Match en los ajustes de sshd activa el acceso con contraseña para algunos usuarios, así que un cambio global no les llegaría.',
+        methods:
+          'AuthenticationMethods pide contraseña además de clave, así que desactivarla dejaría fuera a todos.',
+        control:
+          'Davish llega a este servidor por un control socket, así que no puede probar por sí solo un acceso con clave.',
+        password: 'Davish entra con contraseña.',
+      },
+      blockedHint:
+        'Davish no lo cambiará desde aquí. Arréglalo primero en los ajustes de sshd y vuelve a comprobar.',
+      checkAgain: 'Comprobar de nuevo',
+      confirmOffTitle: '¿Desactivar el acceso con contraseña?',
+      confirmOffBody:
+        'Davish comprueba que tu clave entra por una conexión nueva, hace una copia de los ajustes de sshd, desactiva el acceso con contraseña y recarga sshd. Si después la clave no entra, deshace el cambio. Se ejecuta como root:',
+      confirmOffNote:
+        'Tu sesión actual sigue abierta. Mantenla hasta que hayas probado un acceso nuevo con la clave.',
+      confirmOnTitle: '¿Volver a activar el acceso con contraseña?',
+      confirmOnBody: 'Elimina el archivo que añadió Davish y recarga sshd:',
     },
     failed: {
       title: (n: number) => `Inicios de sesión fallidos (7 días): ${n}`,
@@ -367,6 +395,18 @@ const es = {
     rootRuns:
       'Necesita root: Davish lo ejecuta con sudo cuando confirmas, pidiendo la contraseña de sudo una vez por sesión si hace falta.',
     dangerous: 'Esto puede borrar datos reales, no solo cachés. Revísalo antes de limpiar.',
+    preview: {
+      loading: 'Listando los archivos que borraría…',
+      none: 'Ahora mismo no coincide ningún archivo.',
+      title: (shown: number, total: number) =>
+        total > 0
+          ? `Borraría estos archivos: los ${shown} más grandes de ${total}. Lee la lista antes de continuar.`
+          : `Borraría estos ${shown} archivos. Lee la lista antes de continuar.`,
+      failed:
+        'No se pudieron listar los archivos. Ejecútalo solo si sabes seguro lo que borra el comando.',
+      noRoot:
+        'Listado sin root: faltan las carpetas que solo root puede leer, así que podrían borrarse más archivos de los mostrados.',
+    },
     tabs: { dirs: 'Carpetas', files: 'Archivos grandes' },
     scan: 'Volver a analizar',
     scanning: 'Analizando todo el disco, puede tardar uno o dos minutos…',
@@ -425,11 +465,11 @@ const es = {
     cleanups: {
       'docker-images': {
         title: 'Docker: imágenes que ningún contenedor usa',
-        body: 'Elimina todas las imágenes que ningún contenedor usa, también las etiquetadas; la próxima ejecución las vuelve a descargar. Comando que se ejecutará:',
+        body: 'Elimina todas las imágenes que ningún contenedor usa, también las etiquetadas. Las de un registro se pueden volver a descargar, pero una que construiste en este servidor se pierde para siempre. Comando que se ejecutará:',
       },
       'docker-containers': {
         title: 'Docker: contenedores detenidos',
-        body: 'Elimina los contenedores detenidos y sus capas de escritura. Comando que se ejecutará:',
+        body: 'Elimina los contenedores detenidos y sus capas de escritura: lo que escribieron fuera de un volumen se pierde. Revisa la lista de abajo. Comando que se ejecutará:',
       },
       'docker-cache': {
         title: 'Docker: caché de compilación',
@@ -437,11 +477,11 @@ const es = {
       },
       'docker-volumes': {
         title: 'Docker: volúmenes que ningún contenedor usa',
-        body: 'Cuidado: un volumen puede guardar los datos (bases de datos, archivos subidos) de un contenedor eliminado. Eliminarlo los pierde para siempre. Comando que se ejecutará:',
+        body: 'Cuidado: un volumen puede guardar los datos (bases de datos, archivos subidos) de un contenedor eliminado. Eliminarlo los pierde para siempre. La lista de abajo muestra los volúmenes que ningún contenedor usa ahora; el de un contenedor que iniciarás más tarde también está en ella. Comando que se ejecutará:',
       },
       'docker-logs': {
         title: 'Docker: registros de contenedores de más de 10 MB',
-        body: 'Vacía los archivos de registro JSON de los contenedores en /var/lib/docker/containers; los contenedores siguen en marcha y registrando. Comando que se ejecutará:',
+        body: 'Vacía los archivos de registro JSON de los contenedores en /var/lib/docker/containers; los contenedores siguen en marcha y registrando, pero lo que esos registros contenían se pierde. Comando que se ejecutará:',
       },
       journal: {
         title: 'Journal de systemd',
@@ -449,7 +489,7 @@ const es = {
       },
       logs: {
         title: 'Registros rotados antiguos en /var/log',
-        body: 'Elimina archivos de registro rotados (*.gz, *.1, *.old); los registros en uso no se tocan. Comando que se ejecutará:',
+        body: 'Elimina archivos de /var/log con nombre de registro rotado (syslog.1, auth.log.2, *.gz, *.old). Solo se guía por el nombre, así que revisa en la lista de abajo si hay algo más. Comando que se ejecutará:',
       },
       apt: {
         title: 'Caché de paquetes de apt',
@@ -465,7 +505,7 @@ const es = {
       },
       tmp: {
         title: 'Archivos temporales de más de 7 días',
-        body: 'Elimina los archivos de /tmp y /var/tmp que nadie ha leído en 7 días. Comando que se ejecutará:',
+        body: 'Elimina los archivos de /tmp y /var/tmp que nadie ha leído ni cambiado en 7 días, salvo el /tmp privado de los servicios. Un programa aún puede guardar algo que necesita allí: revisa la lista de abajo. Comando que se ejecutará:',
       },
       snap: {
         title: 'Revisiones antiguas de snap',
@@ -473,7 +513,7 @@ const es = {
       },
       'home-cache': {
         title: 'Cachés en ~/.cache',
-        body: 'Elimina las cachés de los programas (pip, yarn, herramientas de compilación…); se regeneran cuando hacen falta. Comando que se ejecutará:',
+        body: 'Elimina todo lo que hay en ~/.cache. Los programas recrean la mayor parte, pero algo es lento o pesado de volver a obtener (modelos descargados, navegadores de pruebas). Revisa la lista de abajo. Comando que se ejecutará:',
       },
       npm: {
         title: 'Caché de npm',
@@ -2209,6 +2249,10 @@ const es = {
     themes: { system: 'Automático', light: 'Claro', dark: 'Oscuro' },
     language: 'Idioma',
     languageHint: 'El idioma de la interfaz.',
+    startup: 'Al abrir Davish',
+    startupHint:
+      'Todos los servidores muestra la lista. Último servidor abre y conecta el que usó por última vez. Nada abre sin conectar, para servidores tras una VPN o en producción.',
+    startups: { all: 'Todos los servidores', last: 'Último servidor', none: 'Nada' },
     langs: { vi: 'Tiếng Việt', en: 'English', zh: '简体中文', es: 'Español', ko: '한국어' },
     langRestart:
       'Davish se reiniciará: los terminales y transferencias en curso se detienen, y los servidores se vuelven a conectar solos.',
@@ -2235,6 +2279,14 @@ const es = {
     perfBlurHint: 'Desenfoca lo que hay detrás de una ventana.',
     perfShadow: 'Sombra corta',
     perfShadowHint: 'Una sombra corta se redibuja más rápido al desplazarse y al arrastrar.',
+    dragTitle: 'Arrastrar ventanas',
+    dragLabel: 'Al arrastrar',
+    dragFill: 'Rellenar el contorno',
+    dragFillHint:
+      'Un tinte suave dentro del contorno facilita ver la ventana. Desactívalo en un equipo muy lento para el arrastre más ligero.',
+    dragHint:
+      'En vivo mueve toda la ventana. Sencillo también, pero apaga el cristal hasta que sueltas. Contorno mueve solo un contorno y coloca la ventana allí al soltar. Elige uno más ligero si arrastrar va lento.',
+    dragModes: { live: 'En vivo', simple: 'Sencillo', outline: 'Contorno' },
     perfOpaque: 'Fondos sólidos',
     perfOpaqueHint: 'Las ventanas ya no se mezclan con el fondo.',
     perfWallpaper: 'Manchas del fondo',
@@ -2243,6 +2295,9 @@ const es = {
     perfMotionHint: 'Las animaciones de abrir, cerrar y minimizar.',
     perfWidgets: 'Widgets',
     perfWidgetsHint: 'Los widgets del escritorio. Desactivados, se ocultan y dejan de leer datos.',
+    perfWallpaperImage: 'Imagen de fondo',
+    perfWallpaperImageHint:
+      'Muestra la imagen que elegiste. Desactivada, vuelve al fondo de color.',
     perfNoDmabuf: 'Desactivar DMA-BUF',
     perfNoDmabufHint: 'Un ajuste de WebKitGTK en Linux. Se aplica al reiniciar.',
     perfNoCompositing: 'Desactivar la composición',
@@ -2265,6 +2320,16 @@ const es = {
     wallpaper: 'Color del fondo de escritorio',
     wallpaperCustom: 'Elegir cualquier color',
     wallpaperColor: (c: string) => `Color ${c}`,
+    wallpaperPicture: 'Imagen',
+    wallpaperPictureHint:
+      'Usa una imagen de este equipo. Se reduce y se guarda aquí, nunca se sube.',
+    wallpaperChoose: 'Elegir…',
+    wallpaperChange: 'Cambiar…',
+    wallpaperRemove: 'Quitar',
+    wallpaperBad: 'Solo imágenes PNG, JPEG o WebP de menos de 50 MB.',
+    wallpaperDim: 'Oscurecer imagen',
+    wallpaperDimHint: 'Oscurece la imagen para que los iconos y el texto se lean bien.',
+    wallpaperHidden: 'El perfil actual oculta la imagen. Activa Imagen de fondo en Rendimiento.',
     menubar: 'Barra de menús',
     menubarStats: 'Lecturas en la barra de menús',
     menubarStatsHint:
@@ -2943,6 +3008,8 @@ const es = {
       'Todavía no hay volcados en ~/db-backups: escribe la ruta de un archivo .sql o .sql.gz.',
     restoreBody:
       'El volcado se aplica sobre la base de datos tal como está: las tablas que contiene suelen reemplazarse. Si no estás seguro, haz antes un volcado. Ejecuta:',
+    restoreBodyMongo:
+      'Cada colección del archivo reemplaza a la colección del mismo nombre (mongorestore --drop) y lo que tenía la actual se pierde. Las colecciones que no están en el archivo se conservan. Si no estás seguro, haz antes un volcado. Ejecuta:',
     restored: (n: string) => `${n} restaurada.`,
     tunnel: 'Abrir túnel',
     tunnelOpen: (remote: number, local: number) =>
@@ -3341,7 +3408,7 @@ const es = {
       'Se borran el archivo de configuración y su enlace en sites-enabled. No se puede deshacer. nginx sigue sirviendo el sitio hasta que se recargue.',
     removeCerts: (names: string) => `Eliminar también el certificado de Let's Encrypt: ${names}`,
     removeCertsHint:
-      'Ejecuta certbot delete: certbot deja de renovar este dominio, así que también cesan los errores de renovación. Solo este sitio usa el certificado.',
+      'Ejecuta certbot delete: certbot deja de renovar este dominio, así que también cesan los errores de renovación. Ningún otro sitio de nginx lo usa, pero Davish no puede ver un servidor de correo u otro programa que quizá lo use. Si dudas, déjalo desactivado.',
     sharedCerts: (names: string) =>
       `Se conserva el certificado ${names} porque otros sitios también lo usan.`,
     commandIntro: 'Comando que se ejecutará:',
@@ -3558,9 +3625,16 @@ const es = {
       'Una versión de desarrollo no se actualiza sola. Descarga la versión nueva desde la página de la versión.',
     DB_AUTH_REQUIRED:
       'Este MongoDB tiene la autenticación activada: necesita un usuario y una contraseña de MongoDB (no tu acceso SSH).',
+    DB_SYSTEM: 'El motor necesita esta base de datos del sistema, así que Davish no la elimina.',
     DB_AUTH_FAILED: 'MongoDB ha rechazado este usuario o contraseña.',
     SUDO_PASSWORD_REQUIRED: 'El servidor necesita la contraseña de sudo para esto.',
     SUDO_PASSWORD_WRONG: 'sudo no ha aceptado esta contraseña.',
+    SEC_KEY_LOGIN_FAILED:
+      'La clave no pudo entrar por una conexión nueva, así que no se cambió nada. Revisa primero la clave en la app Claves SSH.',
+    SEC_WOULD_LOCK_OUT:
+      'Esta dirección o rango podría dejarte fuera: es demasiado amplio, o es la dirección desde la que Davish se conecta. Bloquea un solo equipo o un rango más estrecho, o ejecútalo en Terminal si estás seguro.',
+    SEC_KEY_LOGIN_LOST:
+      'Tras el cambio la clave no pudo entrar, así que Davish lo deshizo. Si el acceso con contraseña sigue desactivado, elimina /etc/ssh/sshd_config.d/00-davish-no-password.conf y recarga sshd.',
     INVENTORY_YAML_UNSUPPORTED:
       'Este inventario es YAML (o JSON). Por ahora Davish solo lee inventarios INI.',
     INVENTORY_SCRIPT_UNSUPPORTED:

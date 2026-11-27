@@ -192,8 +192,30 @@ const zh = {
       on: '已开启：任何人都可以通过 SSH 尝试猜测密码。',
       unknown: '无法读取 sshd 配置；OpenSSH 默认开启。',
       useKeyFirst: 'Davish 用密码登录这台服务器。请先在 SSH 密钥应用中改用密钥，再关闭密码登录。',
-      how: '下面的命令会在 /etc/ssh/sshd_config.d 中添加一个文件，用 sshd -t 检查通过后才重载；检查失败就删除该文件。sshd_config 中需要有 Include sshd_config.d 这一行（Ubuntu 20.04+、Debian 11+）。',
-      keepOpen: '在确认能用密钥重新连接之前，请保持当前会话不要关闭（文件 → 断开连接，然后连接）。',
+      how: '此更改是 /etc/ssh/sshd_config.d 中的一个文件，不会修改你自己的 sshd 设置。sshd_config 必须有 Include sshd_config.d 这一行（Ubuntu 20.04+、Debian 11+）。',
+      allow: '允许密码登录',
+      offOwn: '此服务器已在它自己的 sshd 设置中关闭。Davish 只撤销它自己所做的更改。',
+      offByDavish: '已关闭：Davish 已在此服务器上关闭密码登录。',
+      undoHint: '重新开启只会删除 Davish 添加的文件，不会动你自己的 sshd 设置。',
+      turnOn: '重新开启密码登录',
+      turnOff: '关闭密码登录',
+      doneOff: '密码登录已关闭，密钥仍可登录。',
+      doneOn: '密码登录已重新开启。',
+      blocked: {
+        noInclude: '此处 sshd_config 不读取 /etc/ssh/sshd_config.d（OpenSSH 较旧）。',
+        match: 'sshd 设置中的 Match 块对部分用户开启了密码登录，全局更改不会对他们生效。',
+        methods: 'AuthenticationMethods 同时要求密码和密钥，关闭密码会把所有人锁在外面。',
+        control: 'Davish 通过 control socket 连接此服务器，无法单独测试密钥登录。',
+        password: 'Davish 正在用密码登录。',
+      },
+      blockedHint: 'Davish 不会从这里更改。请先在 sshd 设置中处理，然后再检查一次。',
+      checkAgain: '重新检查',
+      confirmOffTitle: '关闭密码登录？',
+      confirmOffBody:
+        'Davish 先用新连接确认密钥能登录，备份 sshd 设置，关闭密码登录并重新加载 sshd。之后如果密钥不能登录，就撤销更改。以 root 运行：',
+      confirmOffNote: '当前会话保持打开。请在用密钥成功新登录一次之前保留它。',
+      confirmOnTitle: '重新开启密码登录？',
+      confirmOnBody: '删除 Davish 添加的文件并重新加载 sshd：',
     },
     failed: {
       title: (n: number) => `失败登录（7 天）：${n}`,
@@ -346,6 +368,17 @@ const zh = {
     toTerminal: '在终端中打开命令',
     rootRuns: '需要 root：你确认后 Davish 通过 sudo 运行，如有需要每个会话只询问一次 sudo 密码。',
     dangerous: '这可能会删除真实数据，而不只是缓存。清理前请先检查。',
+    preview: {
+      loading: '正在列出将被删除的文件…',
+      none: '目前没有匹配的文件。',
+      title: (shown: number, total: number) =>
+        total > 0
+          ? `将删除这些文件：${total} 个中最大的 ${shown} 个。继续之前请先查看列表。`
+          : `将删除这 ${shown} 个文件。继续之前请先查看列表。`,
+      failed: '无法列出文件。只有在确定命令会删除什么时才运行。',
+      noRoot:
+        '未使用 root 列出：只有 root 能读取的文件夹不在列表中，实际删除的文件可能比显示的更多。',
+    },
     tabs: { dirs: '文件夹', files: '大文件' },
     scan: '重新扫描',
     scanning: '正在扫描整个磁盘，可能需要一两分钟…',
@@ -402,11 +435,11 @@ const zh = {
     cleanups: {
       'docker-images': {
         title: 'Docker：没有容器使用的镜像',
-        body: '删除所有没有容器使用的镜像，包括带标签的；下次运行时会重新拉取。将运行的命令：',
+        body: '删除所有没有容器使用的镜像，包括带标签的。来自镜像仓库的可以重新拉取，但你在这台服务器上自己构建的镜像会永久丢失。将运行的命令：',
       },
       'docker-containers': {
         title: 'Docker：已停止的容器',
-        body: '删除已停止的容器及其可写层。将运行的命令：',
+        body: '删除已停止的容器及其可写层：它们写在数据卷之外的内容会丢失。请查看下面的列表。将运行的命令：',
       },
       'docker-cache': {
         title: 'Docker：构建缓存',
@@ -414,11 +447,11 @@ const zh = {
       },
       'docker-volumes': {
         title: 'Docker：没有容器使用的数据卷',
-        body: '注意：数据卷可能保存着已删除容器的数据（数据库、上传文件）。删除后数据将永久丢失。将运行的命令：',
+        body: '注意：数据卷可能保存着已删除容器的数据（数据库、上传文件）。删除后数据将永久丢失。下面的列表是目前没有容器使用的数据卷；你之后要启动的容器的数据卷也在其中。将运行的命令：',
       },
       'docker-logs': {
         title: 'Docker：超过 10 MB 的容器日志',
-        body: '清空 /var/lib/docker/containers 中容器的 JSON 日志文件；容器会继续运行并写日志。将运行的命令：',
+        body: '清空 /var/lib/docker/containers 中容器的 JSON 日志文件；容器会继续运行并写日志，但这些日志里原有的内容会丢失。将运行的命令：',
       },
       journal: {
         title: 'systemd 日志（journal）',
@@ -426,7 +459,7 @@ const zh = {
       },
       logs: {
         title: '/var/log 中轮转过的旧日志',
-        body: '删除轮转过的日志文件（*.gz、*.1、*.old）；不会动正在写入的日志。将运行的命令：',
+        body: '删除 /var/log 中名称像轮转日志的文件（syslog.1、auth.log.2、*.gz、*.old）。只按名称判断，所以请在下面的列表中检查有没有其他文件。将运行的命令：',
       },
       apt: {
         title: 'apt 软件包缓存',
@@ -442,7 +475,7 @@ const zh = {
       },
       tmp: {
         title: '超过 7 天的临时文件',
-        body: '删除 /tmp 和 /var/tmp 中 7 天内没人读取过的文件。将运行的命令：',
+        body: '删除 /tmp 和 /var/tmp 中 7 天内没有被读取或修改过的文件，服务私有的 /tmp 除外。程序仍可能把需要的东西放在里面：请查看下面的列表。将运行的命令：',
       },
       snap: {
         title: '旧的 snap 版本',
@@ -450,7 +483,7 @@ const zh = {
       },
       'home-cache': {
         title: '~/.cache 中的缓存',
-        body: '删除程序的缓存（pip、yarn、构建工具…）；需要时会自动重建。将运行的命令：',
+        body: '删除 ~/.cache 中的所有内容。程序会重建其中大部分，但有些很慢或很大（下载的模型、测试用浏览器）。请查看下面的列表。将运行的命令：',
       },
       npm: {
         title: 'npm 缓存',
@@ -2102,6 +2135,10 @@ const zh = {
     themes: { system: '自动', light: '浅色', dark: '深色' },
     language: '语言',
     languageHint: '界面的语言。',
+    startup: '打开 Davish 时',
+    startupHint:
+      '“所有服务器”显示列表；“上次的服务器”会打开并连接上次使用的服务器；“不打开”则不连接，适合 VPN 后面或生产环境的服务器。',
+    startups: { all: '所有服务器', last: '上次的服务器', none: '不打开' },
     langs: { vi: 'Tiếng Việt', en: 'English', zh: '简体中文', es: 'Español', ko: '한국어' },
     langRestart: 'Davish 会重启：正在运行的终端和传输会停止，服务器会自动重新连接。',
     langApply: '重启',
@@ -2120,6 +2157,13 @@ const zh = {
     perfBlurHint: '模糊窗口后面的内容。',
     perfShadow: '短窗口阴影',
     perfShadowHint: '短阴影在滚动和拖动时重绘更快。',
+    dragTitle: '拖动窗口',
+    dragLabel: '拖动时',
+    dragFill: '填充轮廓',
+    dragFillHint: '轮廓内加一层淡色，更容易看清窗口。在非常慢的电脑上关闭它，拖动最轻。',
+    dragHint:
+      '实时：整个窗口跟随鼠标。简化：窗口同样跟随，但在松开前关闭玻璃效果。轮廓：只移动一个轮廓，松开后窗口才移到那里。如果拖动感觉卡顿，请选择更轻的模式。',
+    dragModes: { live: '实时', simple: '简化', outline: '轮廓' },
     perfOpaque: '纯色填充',
     perfOpaqueHint: '窗口不再和壁纸混合。',
     perfWallpaper: '壁纸色块',
@@ -2128,6 +2172,8 @@ const zh = {
     perfMotionHint: '窗口打开、关闭和最小化的动画。',
     perfWidgets: '小组件',
     perfWidgetsHint: '桌面上的小组件。关闭后隐藏它们，并停止为它们读取数据。',
+    perfWallpaperImage: '壁纸图片',
+    perfWallpaperImageHint: '显示你选的图片。关闭后回到彩色壁纸。',
     perfNoDmabuf: '关闭 DMA-BUF',
     perfNoDmabufHint: 'Linux 上 WebKitGTK 的一种变通。重启后生效。',
     perfNoCompositing: '关闭合成',
@@ -2149,6 +2195,15 @@ const zh = {
     wallpaper: '壁纸颜色',
     wallpaperCustom: '选择任意颜色',
     wallpaperColor: (c: string) => `颜色 ${c}`,
+    wallpaperPicture: '图片',
+    wallpaperPictureHint: '使用这台电脑上的图片。它会被缩小并保存在本机，不会上传。',
+    wallpaperChoose: '选择…',
+    wallpaperChange: '更换…',
+    wallpaperRemove: '移除',
+    wallpaperBad: '只支持 50 MB 以下的 PNG、JPEG 或 WebP 图片。',
+    wallpaperDim: '压暗图片',
+    wallpaperDimHint: '压暗图片，让图标和文字更易读。',
+    wallpaperHidden: '当前预设隐藏了图片。请在“性能”中打开“壁纸图片”。',
     menubar: '菜单栏',
     menubarStats: '菜单栏中的指标',
     menubarStatsHint: '把鼠标移到指标上可查看最近 15 分钟的图表。GPU 和 Swap 只在服务器有时显示。',
@@ -2789,6 +2844,8 @@ const zh = {
     noDumps: '~/db-backups 中还没有备份：请输入 .sql 或 .sql.gz 文件的路径。',
     restoreBody:
       '备份会直接在当前数据库上执行：其中包含的表通常会被替换。不确定的话请先导出。将运行：',
+    restoreBodyMongo:
+      '归档中的每个集合都会替换同名的现有集合（mongorestore --drop），现有集合里的数据会丢失。不在归档中的集合保持不变。不确定的话请先导出。将运行：',
     restored: (n: string) => `已恢复 ${n}。`,
     tunnel: '打开隧道',
     tunnelOpen: (remote: number, local: number) =>
@@ -3160,7 +3217,7 @@ const zh = {
       '配置文件及其在 sites-enabled 中的链接都会被删除。此操作无法撤销。nginx 重载前仍会继续提供该站点。',
     removeCerts: (names: string) => `同时删除 Let's Encrypt 证书：${names}`,
     removeCertsHint:
-      '运行 certbot delete：certbot 不再续期这个域名，续期报错也会随之停止。只有这个站点使用该证书。',
+      '运行 certbot delete：certbot 不再续期这个域名，续期报错也会随之停止。没有其他 nginx 站点使用它，但 Davish 看不到可能在使用它的邮件服务器或其他程序。不确定时请保持关闭。',
     sharedCerts: (names: string) => `保留证书 ${names}，因为其他站点也在使用。`,
     commandIntro: '将运行的命令：',
     edit: {
@@ -3358,9 +3415,16 @@ const zh = {
       'Davish 运行期间，这台电脑上的文件被替换或删除了（重新构建、重新安装）。请退出 Davish 后重新打开，或从发布页面下载新版本。',
     UPDATE_DEV_BUILD: '开发版不会自动更新。请从发布页面下载新版本。',
     DB_AUTH_REQUIRED: '此 MongoDB 已启用身份验证：需要 MongoDB 的用户和密码（不是 SSH 账户）。',
+    DB_SYSTEM: '数据库引擎需要这个系统数据库，所以 Davish 不会删除它。',
     DB_AUTH_FAILED: 'MongoDB 拒绝了此用户或密码。',
     SUDO_PASSWORD_REQUIRED: '服务器需要 sudo 密码才能执行此操作。',
     SUDO_PASSWORD_WRONG: 'sudo 不接受此密码。',
+    SEC_KEY_LOGIN_FAILED:
+      '密钥无法通过新连接登录，所以没有做任何更改。请先在 SSH 密钥应用中检查密钥。',
+    SEC_WOULD_LOCK_OUT:
+      '这个地址或范围可能会把你挡在外面：范围过大，或者就是 Davish 连接所用的地址。请只封禁单个主机或更小的范围，确定的话请在终端中运行。',
+    SEC_KEY_LOGIN_LOST:
+      '更改后密钥无法登录，Davish 已撤销。如果密码登录仍是关闭的，请删除 /etc/ssh/sshd_config.d/00-davish-no-password.conf 并重新加载 sshd。',
     INVENTORY_YAML_UNSUPPORTED:
       '此 inventory 为 YAML（或 JSON）格式。Davish 目前只读取 INI 格式的 inventory。',
     INVENTORY_SCRIPT_UNSUPPORTED:

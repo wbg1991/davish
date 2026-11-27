@@ -25,7 +25,7 @@
     transferNoticeId,
     transfers,
   } from '../stores/transfers.svelte'
-  import { openDisk, openFilesAt, openLogs, openTransfers } from '../wm/intents.svelte'
+  import { openDisk, openFilesAt, openLogs, openServers, openTransfers } from '../wm/intents.svelte'
   import Banners from './Banners.svelte'
   import { ui } from '../stores/ui.svelte'
   import Window from '../wm/Window.svelte'
@@ -33,6 +33,7 @@
   import Spotlight from '../spotlight/Spotlight.svelte'
   import DesktopIcons from './DesktopIcons.svelte'
   import { widgets } from '../stores/widgets.svelte'
+  import { wallpaperImage } from '../stores/wallpaperImage.svelte'
   import Dock from './Dock.svelte'
   import { dockItems } from './dockItems'
   import Launchpad from './Launchpad.svelte'
@@ -116,6 +117,16 @@
     return () => {
       disposed = true
       stop()
+    }
+  })
+
+  // #281: when the setting says so, the overview is what opens first.
+  let launchShown = false
+  $effect(() => {
+    if (launchShown || !servers.ready || servers.launchView === null) return
+    launchShown = true
+    if (servers.launchView === 'all' && servers.list.length > 0) {
+      untrack(() => openServers(servers.activeId || (servers.list[0]?.id ?? '')))
     }
   })
 
@@ -295,6 +306,13 @@
 <svelte:document onvisibilitychange={() => (hidden = document.hidden)} />
 
 <div class="desktop">
+  {#if wallpaperImage.has && settings.knobs.wallpaperImage}
+    <!-- Under everything; the glass above blurs it like the blobs. -->
+    <img class="picture" src={wallpaperImage.url} alt="" draggable="false" decoding="async" />
+    {#if settings.wallpaperDim > 0}
+      <div class="picture-dim" style:opacity={settings.wallpaperDim / 100}></div>
+    {/if}
+  {/if}
   <MenuBar />
   <Spotlight open={ui.spotlight} onclose={() => (ui.spotlight = false)} />
   <Launchpad
@@ -322,6 +340,17 @@
       style:transform="translate({p.x}px, {p.y}px)"
       style:width="{p.w}px"
       style:height="{p.h}px"
+    ></div>
+  {/if}
+
+  {#if wm.dragOutline}
+    {@const o = wm.dragOutline}
+    <div
+      class="drag-outline"
+      class:filled={settings.outlineFill}
+      style:transform="translate({o.x}px, {o.y}px)"
+      style:width="{o.w}px"
+      style:height="{o.h}px"
     ></div>
   {/if}
 
@@ -411,6 +440,29 @@
       );
   }
 
+  /* A chosen picture replaces the blobs; the base color shows while it decodes. */
+  :global(:root[data-perf-wallpaper='image']) .desktop {
+    background-image: none;
+  }
+
+  .picture,
+  .picture-dim {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    user-select: none;
+  }
+
+  .picture {
+    object-fit: cover;
+  }
+
+  .picture-dim {
+    background: #000;
+  }
+
   /* Light preset: one solid color, still the swatch mixed into the base. */
   :global(:root[data-perf-wallpaper='flat']) .desktop {
     background-image: none;
@@ -419,6 +471,26 @@
 
   .workspace.hidden {
     display: none;
+  }
+
+  /* The outline of a window being dragged in the outline mode. It moves instead of the window, so
+     it is plain: no blur, no shadow, a border and at most a light tint. Its own layer (will-change)
+     and contained, so moving it only re-composites it instead of repainting what it passes over. */
+  .drag-outline {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 900;
+    box-sizing: border-box;
+    border-radius: var(--window-radius);
+    border: 2px solid var(--accent);
+    pointer-events: none;
+    will-change: transform;
+    contain: strict;
+  }
+
+  .drag-outline.filled {
+    background: color-mix(in srgb, var(--accent) 12%, transparent);
   }
 
   .snap-preview {

@@ -201,9 +201,36 @@ const vi = {
       unknown: 'Không đọc được cấu hình sshd; mặc định của OpenSSH là bật.',
       useKeyFirst:
         'Davish đang đăng nhập server này bằng mật khẩu. Chuyển sang key trong app Khóa SSH trước, rồi mới tắt đăng nhập mật khẩu.',
-      how: 'Lệnh dưới thêm một file trong /etc/ssh/sshd_config.d, kiểm tra bằng sshd -t rồi mới reload; nếu kiểm tra lỗi thì tự gỡ file. Cần sshd_config có dòng Include sshd_config.d (Ubuntu 20.04+, Debian 11+).',
-      keepOpen:
-        'Giữ phiên hiện tại mở cho tới khi thử kết nối lại bằng key thành công (Tệp → Ngắt kết nối rồi Kết nối).',
+      how: 'Thay đổi là một file trong /etc/ssh/sshd_config.d; cấu hình sshd của bạn không bị sửa. sshd_config phải có dòng Include sshd_config.d (Ubuntu 20.04+, Debian 11+).',
+      allow: 'Cho phép đăng nhập bằng mật khẩu',
+      offOwn:
+        'Server này tự tắt trong cấu hình sshd của nó. Davish chỉ hoàn tác những thay đổi do chính nó làm.',
+      offByDavish: 'Đã tắt: Davish đã tắt đăng nhập bằng mật khẩu trên server này.',
+      undoHint: 'Bật lại chỉ gỡ file Davish đã thêm; cấu hình sshd của bạn không bị đụng tới.',
+      turnOn: 'Bật lại đăng nhập bằng mật khẩu',
+      turnOff: 'Tắt đăng nhập bằng mật khẩu',
+      doneOff: 'Đã tắt đăng nhập bằng mật khẩu, và key vẫn đăng nhập được.',
+      doneOn: 'Đã bật lại đăng nhập bằng mật khẩu.',
+      blocked: {
+        noInclude: 'sshd_config không đọc /etc/ssh/sshd_config.d ở đây (OpenSSH cũ).',
+        match:
+          'Một khối Match trong cấu hình sshd bật đăng nhập mật khẩu cho một số user, nên thay đổi chung sẽ không tới họ.',
+        methods:
+          'AuthenticationMethods đòi cả mật khẩu lẫn key, nên tắt mật khẩu sẽ khóa mọi người ra ngoài.',
+        control:
+          'Davish vào server này qua control socket nên không tự thử được đăng nhập bằng key.',
+        password: 'Davish đang đăng nhập bằng mật khẩu.',
+      },
+      blockedHint:
+        'Davish không đổi việc này từ đây. Hãy sửa trong cấu hình sshd trước, rồi kiểm tra lại.',
+      checkAgain: 'Kiểm tra lại',
+      confirmOffTitle: 'Tắt đăng nhập bằng mật khẩu?',
+      confirmOffBody:
+        'Davish thử key đăng nhập qua một kết nối mới, sao lưu cấu hình sshd, tắt đăng nhập mật khẩu rồi reload sshd. Nếu sau đó key không đăng nhập được thì hoàn tác. Chạy bằng quyền root:',
+      confirmOffNote:
+        'Phiên hiện tại vẫn mở. Giữ nó cho tới khi bạn đã thử đăng nhập mới bằng key.',
+      confirmOnTitle: 'Bật lại đăng nhập bằng mật khẩu?',
+      confirmOnBody: 'Gỡ file Davish đã thêm và reload sshd:',
     },
     failed: {
       title: (n: number) => `Thử đăng nhập sai (7 ngày): ${n}`,
@@ -361,6 +388,17 @@ const vi = {
     rootRuns:
       'Cần root: Davish chạy qua sudo sau khi bạn xác nhận, hỏi mật khẩu sudo một lần mỗi phiên nếu cần.',
     dangerous: 'Mục này có thể xóa dữ liệu thật, không chỉ cache. Kiểm tra kỹ trước khi dọn.',
+    preview: {
+      loading: 'Đang liệt kê các file sẽ bị xóa…',
+      none: 'Hiện không có file nào khớp.',
+      title: (shown: number, total: number) =>
+        total > 0
+          ? `Sẽ xóa các file này: ${shown} file lớn nhất trong ${total}. Đọc danh sách trước khi tiếp tục.`
+          : `Sẽ xóa ${shown} file này. Đọc danh sách trước khi tiếp tục.`,
+      failed: 'Không liệt kê được các file. Chỉ chạy khi bạn chắc câu lệnh xóa những gì.',
+      noRoot:
+        'Liệt kê khi chưa có quyền root: các thư mục chỉ root đọc được không có trong danh sách, nên có thể xóa nhiều file hơn số hiển thị.',
+    },
     tabs: { dirs: 'Thư mục', files: 'File lớn' },
     scan: 'Quét lại',
     scanning: 'Đang quét cả ổ đĩa, có thể mất một hai phút…',
@@ -419,11 +457,11 @@ const vi = {
     cleanups: {
       'docker-images': {
         title: 'Docker: image không container nào dùng',
-        body: 'Xóa mọi image không có container nào dùng, kể cả image có tag; lần chạy sau sẽ tải lại. Lệnh sẽ chạy:',
+        body: 'Xóa mọi image không có container nào dùng, kể cả image có tag. Image từ registry tải lại được, nhưng image bạn tự build trên server này thì mất hẳn. Lệnh sẽ chạy:',
       },
       'docker-containers': {
         title: 'Docker: container đã dừng',
-        body: 'Xóa các container đã dừng cùng lớp ghi của chúng. Lệnh sẽ chạy:',
+        body: 'Xóa các container đã dừng cùng lớp ghi của chúng: những gì chúng ghi ngoài volume sẽ mất. Xem danh sách bên dưới. Lệnh sẽ chạy:',
       },
       'docker-cache': {
         title: 'Docker: cache build',
@@ -431,11 +469,11 @@ const vi = {
       },
       'docker-volumes': {
         title: 'Docker: volume không container nào dùng',
-        body: 'Cẩn thận: volume có thể chứa dữ liệu (database, file tải lên) của container đã xóa. Xóa là mất hẳn. Lệnh sẽ chạy:',
+        body: 'Cẩn thận: volume có thể chứa dữ liệu (database, file tải lên) của container đã xóa. Xóa là mất hẳn. Danh sách bên dưới là các volume hiện không container nào dùng; volume của container bạn sẽ chạy sau này cũng nằm trong đó. Lệnh sẽ chạy:',
       },
       'docker-logs': {
         title: 'Docker: log container quá 10 MB',
-        body: 'Làm rỗng file log JSON của container trong /var/lib/docker/containers; container vẫn chạy và ghi tiếp. Lệnh sẽ chạy:',
+        body: 'Làm rỗng file log JSON của container trong /var/lib/docker/containers; container vẫn chạy và ghi tiếp, nhưng nội dung log cũ mất hẳn. Lệnh sẽ chạy:',
       },
       journal: {
         title: 'Journal của systemd',
@@ -443,7 +481,7 @@ const vi = {
       },
       logs: {
         title: 'Log xoay vòng cũ trong /var/log',
-        body: 'Xóa các file log đã xoay vòng (*.gz, *.1, *.old); log đang ghi không bị đụng. Lệnh sẽ chạy:',
+        body: 'Xóa các file trong /var/log có tên giống log xoay vòng (syslog.1, auth.log.2, *.gz, *.old). Chỉ dựa vào tên file, nên hãy xem danh sách bên dưới có file nào khác không. Lệnh sẽ chạy:',
       },
       apt: { title: 'Cache gói apt', body: 'Xóa các gói .deb đã tải về. Lệnh sẽ chạy:' },
       dnf: { title: 'Cache gói dnf', body: 'Xóa cache metadata và gói của dnf. Lệnh sẽ chạy:' },
@@ -453,7 +491,7 @@ const vi = {
       },
       tmp: {
         title: 'File tạm cũ hơn 7 ngày',
-        body: 'Xóa file trong /tmp và /var/tmp không ai đọc suốt 7 ngày. Lệnh sẽ chạy:',
+        body: 'Xóa file trong /tmp và /var/tmp không ai đọc hay sửa suốt 7 ngày, trừ /tmp riêng của các dịch vụ. Chương trình vẫn có thể để thứ nó cần trong đó: xem danh sách bên dưới. Lệnh sẽ chạy:',
       },
       snap: {
         title: 'Bản snap cũ',
@@ -461,7 +499,7 @@ const vi = {
       },
       'home-cache': {
         title: 'Cache trong ~/.cache',
-        body: 'Xóa cache của các chương trình (pip, yarn, trình build…); chúng tự tạo lại khi cần. Lệnh sẽ chạy:',
+        body: 'Xóa mọi thứ trong ~/.cache. Chương trình tự tạo lại phần lớn, nhưng có phần tải lại rất chậm hoặc rất nặng (model đã tải, trình duyệt để test). Xem danh sách bên dưới. Lệnh sẽ chạy:',
       },
       npm: {
         title: 'Cache npm',
@@ -2144,6 +2182,10 @@ const vi = {
     themes: { system: 'Tự động', light: 'Sáng', dark: 'Tối' },
     language: 'Ngôn ngữ',
     languageHint: 'Ngôn ngữ của giao diện.',
+    startup: 'Khi mở Davish',
+    startupHint:
+      'Tất cả server hiện danh sách. Server cuối mở và kết nối server bạn dùng lần trước. Không gì mở mà không kết nối, cho server sau VPN hoặc đang chạy thật.',
+    startups: { all: 'Tất cả server', last: 'Server cuối', none: 'Không gì' },
     langs: { vi: 'Tiếng Việt', en: 'English', zh: '简体中文', es: 'Español', ko: '한국어' },
     langRestart:
       'Davish sẽ khởi động lại: terminal và chuyển file đang chạy sẽ dừng, server tự kết nối lại.',
@@ -2163,6 +2205,14 @@ const vi = {
     perfBlurHint: 'Làm mờ những gì nằm sau cửa sổ.',
     perfShadow: 'Bóng cửa sổ ngắn',
     perfShadowHint: 'Bóng ngắn vẽ lại nhanh hơn khi cuộn và kéo cửa sổ.',
+    dragTitle: 'Kéo cửa sổ',
+    dragLabel: 'Khi kéo',
+    dragFill: 'Tô nền cho viền',
+    dragFillHint:
+      'Một lớp màu nhẹ bên trong viền giúp nhìn rõ cửa sổ hơn. Tắt đi trên máy rất yếu để kéo nhẹ nhất.',
+    dragHint:
+      'Trực tiếp: cả cửa sổ di chuyển theo chuột. Đơn giản: cửa sổ vẫn di chuyển nhưng tắt kính cho tới khi thả. Viền: chỉ một đường viền di chuyển, thả ra thì cửa sổ mới nhảy tới đó. Chọn mức nhẹ hơn nếu kéo thấy chậm.',
+    dragModes: { live: 'Trực tiếp', simple: 'Đơn giản', outline: 'Viền' },
     perfOpaque: 'Nền đặc',
     perfOpaqueHint: 'Cửa sổ không trộn với hình nền.',
     perfWallpaper: 'Hình nền loang màu',
@@ -2171,6 +2221,8 @@ const vi = {
     perfMotionHint: 'Hiệu ứng mở, đóng và thu nhỏ cửa sổ.',
     perfWidgets: 'Widget',
     perfWidgetsHint: 'Các widget trên desktop. Tắt thì ẩn và ngừng đọc dữ liệu cho chúng.',
+    perfWallpaperImage: 'Ảnh nền',
+    perfWallpaperImageHint: 'Hiện ảnh bạn đã chọn. Tắt thì quay về nền màu.',
     perfNoDmabuf: 'Tắt DMA-BUF',
     perfNoDmabufHint: 'Cách vẽ của WebKitGTK trên Linux. Có hiệu lực sau khi khởi động lại.',
     perfNoCompositing: 'Tắt compositing',
@@ -2193,6 +2245,16 @@ const vi = {
     wallpaper: 'Màu hình nền',
     wallpaperCustom: 'Chọn màu bất kỳ',
     wallpaperColor: (c: string) => `Màu ${c}`,
+    wallpaperPicture: 'Ảnh',
+    wallpaperPictureHint:
+      'Dùng ảnh từ máy này. Ảnh được thu nhỏ và lưu tại máy, không tải lên đâu cả.',
+    wallpaperChoose: 'Chọn…',
+    wallpaperChange: 'Đổi…',
+    wallpaperRemove: 'Xóa',
+    wallpaperBad: 'Chỉ nhận ảnh PNG, JPEG hoặc WebP dưới 50 MB.',
+    wallpaperDim: 'Làm tối ảnh',
+    wallpaperDimHint: 'Làm tối ảnh để icon và chữ dễ đọc.',
+    wallpaperHidden: 'Preset hiện tại đang ẩn ảnh. Bật Ảnh nền trong mục Hiệu năng.',
     menubar: 'Thanh menu',
     menubarStats: 'Số liệu trên thanh menu',
     menubarStatsHint:
@@ -2845,6 +2907,8 @@ const vi = {
     noDumps: 'Chưa có bản dump trong ~/db-backups: gõ đường dẫn file .sql hoặc .sql.gz.',
     restoreBody:
       'Bản dump chạy trên database hiện tại: các bảng có trong dump thường bị thay thế. Nếu không chắc, hãy dump trước. Sẽ chạy:',
+    restoreBodyMongo:
+      'Mỗi collection trong bản lưu sẽ thay thế collection cùng tên (mongorestore --drop), và dữ liệu hiện có của collection đó mất hẳn. Collection không có trong bản lưu được giữ nguyên. Nếu không chắc, hãy dump trước. Sẽ chạy:',
     restored: (n: string) => `Đã khôi phục ${n}.`,
     tunnel: 'Mở tunnel',
     tunnelOpen: (remote: number, local: number) =>
@@ -3231,7 +3295,7 @@ const vi = {
       'File cấu hình và link trong sites-enabled bị xóa. Không hoàn tác được. nginx vẫn phục vụ site cho tới khi reload.',
     removeCerts: (names: string) => `Xóa luôn chứng chỉ Let's Encrypt: ${names}`,
     removeCertsHint:
-      'Chạy certbot delete: certbot thôi gia hạn tên miền này, hết báo lỗi gia hạn. Chỉ site này dùng chứng chỉ.',
+      'Chạy certbot delete: certbot thôi gia hạn tên miền này, hết báo lỗi gia hạn. Không site nginx nào khác dùng nó, nhưng Davish không thấy được mail server hay chương trình khác có thể đang dùng. Không chắc thì để tắt.',
     sharedCerts: (names: string) => `Giữ lại chứng chỉ ${names} vì site khác cũng dùng.`,
     commandIntro: 'Lệnh sẽ chạy:',
     edit: {
@@ -3438,9 +3502,16 @@ const vi = {
     UPDATE_DEV_BUILD: 'Bản dev không tự cập nhật. Hãy tải bản mới từ trang phát hành.',
     DB_AUTH_REQUIRED:
       'MongoDB này bật xác thực: cần user và mật khẩu của MongoDB (khác tài khoản SSH).',
+    DB_SYSTEM: 'Engine cần database hệ thống này nên Davish không xóa nó.',
     DB_AUTH_FAILED: 'MongoDB từ chối user hoặc mật khẩu này.',
     SUDO_PASSWORD_REQUIRED: 'Server cần mật khẩu sudo cho lệnh này.',
     SUDO_PASSWORD_WRONG: 'sudo không nhận mật khẩu này.',
+    SEC_KEY_LOGIN_FAILED:
+      'Key không đăng nhập được qua kết nối mới nên chưa đổi gì. Hãy kiểm tra key trong app Khóa SSH trước.',
+    SEC_WOULD_LOCK_OUT:
+      'Địa chỉ hoặc dải này có thể khóa bạn ra ngoài: dải quá rộng, hoặc là địa chỉ Davish đang dùng để kết nối. Hãy chặn một máy hoặc dải hẹp hơn, hoặc chạy trong Terminal nếu bạn chắc chắn.',
+    SEC_KEY_LOGIN_LOST:
+      'Sau khi đổi, key không đăng nhập được nên Davish đã hoàn tác. Nếu đăng nhập mật khẩu vẫn đang tắt, hãy xóa /etc/ssh/sshd_config.d/00-davish-no-password.conf rồi reload sshd.',
     INVENTORY_YAML_UNSUPPORTED:
       'Inventory này là YAML (hoặc JSON). Hiện Davish chỉ đọc inventory dạng INI.',
     INVENTORY_SCRIPT_UNSUPPORTED:

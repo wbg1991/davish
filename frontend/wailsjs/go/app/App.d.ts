@@ -120,6 +120,8 @@ export function DiskPlanRemove(arg1:string,arg2:string):Promise<fs.RemovePlan>;
 
 export function DiskPlanTruncate(arg1:string):Promise<disk.TruncatePlan>;
 
+export function DiskPreview(arg1:string,arg2:string):Promise<disk.Preview>;
+
 export function DiskRemove(arg1:string,arg2:string,arg3:string):Promise<void>;
 
 export function DiskTruncate(arg1:string,arg2:string,arg3:string):Promise<void>;
@@ -366,6 +368,14 @@ export function SaveServer(arg1:app.ServerInput):Promise<app.ServerView>;
 
 export function SecurityApply(arg1:string,arg2:string,arg3:string,arg4:string):Promise<void>;
 
+export function SecurityDisablePassword(arg1:string,arg2:string):Promise<void>;
+
+export function SecurityEnablePassword(arg1:string,arg2:string):Promise<void>;
+
+export function SecurityPasswordPlan(arg1:boolean):Promise<security.PasswordPlan>;
+
+export function SecurityPasswordStatus(arg1:string):Promise<security.PasswordStatus>;
+
 export function SecurityPlan(arg1:string,arg2:string,arg3:boolean):Promise<security.Plan>;
 
 export function SecurityReport(arg1:string):Promise<security.Report>;
@@ -445,3 +455,9 @@ export function UpdateInstall(arg1:string):Promise<void>;
 export function UpdateRestart():Promise<void>;
 
 export function UpdateVersion():Promise<string>;
+
+export function WallpaperClear():Promise<void>;
+
+export function WallpaperGet():Promise<string>;
+
+export function WallpaperSet(arg1:string):Promise<void>;
